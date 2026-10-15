@@ -1,0 +1,103 @@
+{
+  "procedure": {
+    "source_quote": "Procedure: Total knee replacement, right knee.",
+    "block_id": "b5",
+    "value": "Total knee replacement, right knee"
+  },
+  "medications": [
+    {
+      "source_quote": "Examplamol | 500 mg | Every 6 hours | 7 days",
+      "block_id": "b8",
+      "name": "Examplamol",
+      "dose": "500 mg",
+      "route": null,
+      "frequency": "Every 6 hours",
+      "duration": "7 days"
+    },
+    {
+      "source_quote": "Testocillin | 250 mg | Twice daily | 5 days",
+      "block_id": "b9",
+      "name": "Testocillin",
+      "dose": "250 mg",
+      "route": null,
+      "frequency": "Twice daily",
+      "duration": "5 days"
+    },
+    {
+      "source_quote": "Placebex | 1-2 tablets | As needed | Until review",
+      "block_id": "b10",
+      "name": "Placebex",
+      "dose": "1-2 tablets",
+      "route": null,
+      "frequency": "As needed",
+      "duration": "Until review"
+    }
+  ],
+  "wound_care": [
+    {
+      "source_quote": "Keep the dressing clean and dry.",
+      "block_id": "b12",
+      "instruction": "Keep the dressing clean and dry."
+    },
+    {
+      "source_quote": "Do not soak the wound in water until the stitches are removed.",
+      "block_id": "b13",
+      "instruction": "Do not soak the wound in water until the stitches are removed."
+    }
+  ],
+  "activity": [
+    {
+      "source_quote": "Walk with the frame for short distances several times a day.",
+      "block_id": "b15",
+      "instruction": "Walk with the frame for short distances several times a day.",
+      "restriction_type": "allowed"
+    },
+    {
+      "source_quote": "Do not drive until reviewed by the surgeon.",
+      "block_id": "b16",
+      "instruction": "Do not drive until reviewed by the surgeon.",
+      "restriction_type": "avoid"
+    }
+  ],
+  "diet": [
+    {
+      "source_quote": "Eat a normal balanced diet and drink plenty of fluids.",
+      "block_id": "b18",
+      "instruction": "Eat a normal balanced diet and drink plenty of fluids."
+    }
+  ],
+  "follow_ups": [
+    {
+      "source_quote": "Wound check at the surgical clinic. Date to be confirmed.",
+      "block_id": "b20",
+      "what": "Wound check",
+      "when": null,
+      "where": "surgical clinic"
+    },
+    {
+      "source_quote": "Physiotherapy review in 2 weeks.",
+      "block_id": "b21",
+      "what": "Physiotherapy review",
+      "when": "in 2 weeks",
+      "where": null
+    }
+  ],
+  "warning_signs": [
+    {
+      "source_quote": "Contact the ward or emergency services if you notice heavy bleeding from the wound, new chest pain, or redness and swelling that is getting worse.",
+      "block_id": "b23",
+      "text": "heavy bleeding from the wound, new chest pain, or redness and swelling that is getting worse"
+    }
+  ],
+  "contacts": [],
+  "missing": [
+    {
+      "field": "follow_up.when for wound check",
+      "reason": "Document states 'Date to be confirmed.' but does not provide a specific date."
+    },
+    {
+      "field": "contacts",
+      "reason": "No specific contact names, phone numbers, or email addresses provided in the document."
+    }
+  ]
+}
