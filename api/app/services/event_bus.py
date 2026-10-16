@@ -25,7 +25,9 @@ class EventBus:
         )
         self._history[run_id].append(ev)
         RECORDINGS.mkdir(parents=True, exist_ok=True)
-        with open(RECORDINGS / f"{run_id}.jsonl", "a", encoding="utf-8") as f:
+        # first event of a run in this process starts a fresh recording file
+        mode = "w" if ev.seq == 1 else "a"
+        with open(RECORDINGS / f"{run_id}.jsonl", mode, encoding="utf-8") as f:
             f.write(ev.model_dump_json() + "\n")
         for q in self._subs[run_id]:
             q.put_nowait(ev)
@@ -33,7 +35,7 @@ class EventBus:
 
     async def stream(self, run_id: str, after: int = 0) -> AsyncIterator[Event]:
         q: asyncio.Queue = asyncio.Queue()
-        self._subs[run_id].append(q)  # subscribe first so nothing is missed
+        self._subs[run_id].append(q)
         try:
             last = after
             for ev in list(self._history[run_id]):

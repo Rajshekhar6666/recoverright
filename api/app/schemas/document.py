@@ -1,4 +1,5 @@
 from typing import Literal, Optional
+
 from pydantic import BaseModel
 
 
@@ -8,6 +9,10 @@ class Block(BaseModel):
     page: Optional[int] = None
     text: str
     low_confidence: bool = False  # True for OCR output
+    # table structure, only for type == "table_row"
+    table_id: Optional[str] = None
+    row_index: Optional[int] = None
+    cells: Optional[list[str]] = None  # empty cells are kept so columns stay aligned
 
 
 class SourceDocument(BaseModel):
