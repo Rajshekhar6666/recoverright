@@ -1,0 +1,1952 @@
+RECOVERRIGHT PROJECT AUDIT
+Generated: 10/21/2026 09:24:09
+Root: E:\recoverright
+
+===== GIT STATUS =====
+ M web/app/live/[runId]/page.tsx
+ M web/app/live/layout.tsx
+ M web/app/live/page.tsx
+ M web/app/p/[token]/page.tsx
+ M web/app/p/patient.css
+ M web/app/staff/page.tsx
+ M web/app/staff/staff.css
+ M web/components/live/Theater.tsx
+ M web/components/patient/PatientHome.tsx
+ M web/components/patient/PatientLoader.tsx
+ M web/components/staff/ProcessingView.tsx
+ M web/components/staff/ReviewClient.tsx
+ M web/components/staff/Shell.tsx
+?? _update/
+?? "image/RecoverRight Neon AI Control Room.png"
+?? image/calibration.json
+?? image/class_names.json
+?? image/cropguard_effb0.onnx
+?? image/cropguard_effb0.onnx.data
+?? image/effb0_field.pt
+?? image/effb0_lab.pt
+?? image/lab_vs_field.csv
+?? image/metrics.json
+?? image/model_comparison.csv
+?? project-audit.txt
+?? web/app/live/theater.css
+?? web/components/live/Panels.tsx
+?? web/components/live/Pixel.tsx
+?? web/components/live/SceneCanvas.tsx
+?? web/components/patient/HelpAlert.tsx
+?? web/components/patient/useSafetyMic.ts
+?? web/lib/theater/
+?? web/lib/useLiveRun.ts
+?? web/lib/voice/
+?? web/tests/
+?? web_backup_20261019_145503/
+master
+
+===== PYTHON DEPENDENCIES =====
+
+
+===========================================================================
+FILE: api\requirements.txt
+===========================================================================
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.5
+aiohttp-retry==2.9.1
+aiosignal==1.4.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anthropic==1.14.0
+anyio==4.15.1
+APScheduler==3.11.3
+attrs==26.1.0
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.2
+click==8.5.0
+cloudpickle==3.1.2
+colorama==0.4.6
+cryptography==50.0.2
+deprecation==2.1.0
+distro==1.9.0
+docstring_parser==0.18.0
+fastapi==0.143.1
+frozenlist==1.8.0
+google-ai-generativelanguage==0.6.15
+google-api-core==2.25.2
+google-api-python-client==2.201.0
+google-auth==2.62.0
+google-auth-httplib2==0.4.4
+google-generativeai==0.8.6
+googleapis-common-protos==1.75.0
+groq==1.7.0
+grpcio==1.84.0
+grpcio-status==1.71.2
+h11==0.16.0
+h2==4.4.1
+hpack==4.2.0
+httpcore==1.0.9
+httpcore2==2.13.1
+httplib2==0.32.0
+httptools==0.9.0
+httpx==0.28.1
+httpx2==2.13.1
+hyperframe==6.1.0
+idna==3.20
+jiter==0.17.0
+joblib==1.6.0
+lxml==6.1.3
+multidict==7.1.0
+narwhals==2.27.1
+numpy==2.5.4
+opentelemetry-api==1.45.1
+packaging==26.3
+pandas==3.0.6
+pdfminer.six==20260107
+pdfplumber==0.11.10
+pillow==12.3.0
+postgrest==2.32.0
+propcache==0.5.4
+proto-plus==1.28.2
+protobuf==5.29.6
+pyasn1==0.6.4
+pyasn1_modules==0.4.2
+pycparser==3.11
+pydantic==2.14.1
+pydantic_core==2.50.1
+PyJWT==2.15.1
+pyparsing==3.3.3
+pypdfium2==5.14.0
+pytesseract==0.3.13
+python-dateutil==2.9.0.post0
+python-docx==1.2.0
+python-dotenv==1.2.4
+python-multipart==0.0.32
+PyYAML==6.0.3
+RapidFuzz==3.14.6
+realtime==2.32.0
+requests==2.34.2
+scikit-learn==1.9.1
+scipy==1.18.1
+six==1.17.0
+sniffio==1.3.1
+sse-starlette==3.5.0
+starlette==1.8.0
+storage3==2.32.0
+StrEnum==0.4.15
+supabase==2.32.0
+supabase-auth==2.32.0
+supabase-functions==2.32.0
+threadpoolctl==3.7.0
+tqdm==4.70.1
+truststore==0.10.5
+twilio==9.12.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+tzdata==2026.5
+tzlocal==5.4.4
+uritemplate==4.2.0
+urllib3==2.8.0
+uvicorn==0.54.0
+watchfiles==1.3.0
+websockets==15.0.1
+yarl==1.25.1
+
+===== PROJECT DOCUMENTATION =====
+
+
+===========================================================================
+FILE: README.md
+===========================================================================
+
+
+===========================================================================
+FILE: _update\README.md
+===========================================================================
+# RecoverRight update: Live Theater + patient voice fix
+
+Only `web/` files are included (your ZIP had no `package.json` and no API code). `/staff` was **not touched**.
+`/staff`, `/p/demo` and `/live` remain three separate interfaces.
+
+## Install (Windows PowerShell)
+
+```powershell
+Set-Location E:\recoverright
+Expand-Archive -Force .\recoverright_voice_theater_update.zip -DestinationPath .\_update
+powershell -ExecutionPolicy Bypass -File .\_update\apply.ps1      # backs up what it overwrites to web_backup_<time>
+Set-Location E:\recoverright\web
+npm install                                                       # only if node_modules is missing; no new dependencies
+npm run build                                                     # YOUR authoritative type-check/lint (see "Not verified")
+npm run dev
+```
+
+Open: `http://localhost:3000/staff`, `http://localhost:3000/p/demo`, `http://localhost:3000/live` (newest real run),
+`http://localhost:3000/live/demo` (clearly-labelled simulation, works with the API off).
+Use `localhost` (or https): browsers refuse the microphone on plain `http://<LAN-IP>`.
+Voice needs Chrome or Edge. Firefox has no speech recognition (the app says so and the help button still works).
+
+Unit tests (53, no browser needed, Node 22):
+```powershell
+Set-Location E:\recoverright\web
+npx tsx --test (Get-ChildItem tests\*.test.ts).FullName
+```
+
+Optional `web\.env.local`:
+```
+NEXT_PUBLIC_HELP_PATH=/help              # where the help alert POSTs (see Backend)
+NEXT_PUBLIC_EMERGENCY_NUMBER=            # your local emergency number; shows an extra "Call emergency services" button
+```
+
+## Backend changes required
+
+**Patient help alert needs an endpoint.** The app POSTs JSON to `{API}/help` and shows "Your care team was alerted"
+**only on a 2xx response**. Without the endpoint the patient sees "Help has NOT been sent" plus a call button. That is
+the honest behaviour, and it is what you will see until this exists. Contract + reference code: `backend/help_endpoint_example.py`
+(**untested**, assumes FastAPI). If your API already has a help route, set `NEXT_PUBLIC_HELP_PATH` to it, or send me
+`lib/api.ts` and the route and I will match the payload. Showing alerts to a nurse (your `/staff/help` page) is not done.
+
+Nothing else on the backend changes. The Theater reads the same endpoints as before (`/runs`, `/runs/:id`, `/runs/:id/review`,
+`/runs/:id/events`).
+
+## Voice: what was actually wrong (found by reading `useSafetyMic.ts`, then proven with tests)
+
+| Bug in the old code | Effect | Fix |
+|---|---|---|
+| Negation regex applied to the whole sentence | "no pain but I can't breathe" produced **no alert** | Negation judged locally, per phrase |
+| "cannot / can not / can’t (curly)" not matched | "I cannot breathe" **silent** (old regex missed 5 of 12 emergency phrasings in my test) | Text normalised first |
+| React StrictMode double-mount | stale recognizer restarted itself; two recognizers fought | Every session has a generation id; stale ones are unhooked |
+| UI said "Listening" the instant `start()` was called | showed Listening while permission was pending or denied | "Listening" only after the browser reports audio |
+| 20-second cooldown | a real second emergency after "I'm okay" was ignored | Episode logic + immediate re-arm on dismissal |
+| `network` error → restart every 250 ms | hot loop, still said "Listening" | Capped backoff, honest "Reconnecting…" |
+| Nothing audible, no real API call | alert could not truly reach anyone | Spoken reply + alarm tone + real POST |
+| Demo plan call button | would have dialled `+91 00000 00000` | Placeholder numbers are never dialled |
+| (my own, caught by StrictMode test) save effect overwrote saved dose ticks with empty state | **data loss on reload** | Hydration flag is state, not a ref |
+
+Also: continuous listening restarts itself (watchdog, recycle before the browser stalls a session, wake on tab-visible/online);
+the app's own speech is filtered out by text overlap rather than muting (muting made it deaf to a patient speaking over it);
+a manual red **I need help now** button and a **Test without a microphone** box use the same pipeline.
+Test phrases and the button send real alerts marked `source: "test"` / `"button"`.
+
+## Live Theater
+
+Pixel-art control room (canvas, 384×216 scaled with integer steps), driven only by real events: nodes change state from event
+types, particles are spawned by `effectsFor(event)`, approval only when the polled run status is `approved`.
+Shows actual model names from `extract.*.started`, field-by-field A vs B (paired by drug name, then order; differing attribute named),
+reconciled result, quote verification, per-stage timings, event rate, connection/API state, patient impact.
+States: standby, connecting, no-signal, live, reconnecting, stalled (>20 s without events), stream closed, API lost, reader failed,
+run failed, awaiting review, approved, replay (scrub/speed), and **SIMULATED DEMO** (labelled in the pill, a banner and the connection panel).
+Keys: `F` present · `R` replay · `L` live · `S` sound (off by default) · `D` demo. Presentation mode fits one 1080p screen.
+Respects `prefers-reduced-motion`.
+
+## Verified vs not verified
+
+**Verified** (details and scripts in `verification/`):
+- 53 unit tests pass: phrase detection, the voice state machine (fake recogniser + manual clock), help sender, theater model.
+- 52 checks in real Chromium with real React 19 **in StrictMode** against a mock API: every requested phrase, interim detection,
+  real POST, "alerted" only after 201, 404 → "NOT sent" + retries + confirm-to-close, dismissal then immediate second emergency,
+  echo, negation, medicine by voice and tap, permission denied / network / unsupported, manual button, mobile layout.
+- 59 checks in real Chromium (StrictMode) for the Theater over real Server-Sent Events: demo, live run, real model names, approval from
+  status, dropped stream and recovery, reader failure, run failure, API offline, empty run shows nothing, replay, presentation mode
+  (one screen, no scroll), keyboard, reduced motion, 1920/1366/390 px with no overflow or console errors.
+- Type-check of all new/changed files: 0 errors (partial, see below). Screenshots: `verification/screenshots/`.
+
+**Not verified. Please check these yourself:**
+- **`npm run build` and lint were not run** (no `package.json`, no Next.js here). My type-check used a hand-written minimal React stub
+  (`noImplicitAny` off for `.tsx`), so it is weaker than yours. `lib/api.ts`, `lib/types.ts`, `lib/review.ts` were missing: I used
+  stand-ins inferred from your code. If a field shape differs in the real files, the Theater could misread it.
+- **Real speech recognition was never exercised.** Headless Chromium cannot hear, so recognition was faked. Real Chrome behaviour
+  (service errors, session timeouts, Android duplicate results) is simulated, not observed. Safari and Firefox untested.
+  Phrase detection is English (en-IN) plus a few romanised/Devanagari Hindi phrases.
+- Spoken replies and the alarm tone were checked as calls/state, **not heard**. Browsers may block sound until a tap; the alert then says so.
+- The API contract used by the tests is **my reconstruction from your client code**, not your real backend. `/help` is an assumption.
+- Frame rate: measured only in a CPU-only headless browser: about 35–50 fps at 1080p, 50 fps at 1366×768, occasional long frames (worst
+  ~140 ms). Real GPU hardware should be better, but I could not measure it. An adaptive 30 fps limiter engages on slow machines.
+- Screen-reader use and formal contrast audit not done. `apply.ps1` was not executed (no PowerShell here).
+- Dose/task ticks are saved **on the device only** (the UI says so). There is no backend endpoint for them.
+- Run `npm run build` and tell me about any error, and I will fix it.
+
+
+===========================================================================
+FILE: web\README.md
+===========================================================================
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+
+===========================================================================
+FILE: _update\apply.ps1
+===========================================================================
+# Copies this update into your project and backs up every file it overwrites.
+# NOT executed by the author (no PowerShell was available): it is short, read it first.
+param([string]$Root = "E:\recoverright")
+$ErrorActionPreference = "Stop"
+$web = Join-Path $Root "web"
+$src = Join-Path $PSScriptRoot "web"
+if (-not (Test-Path $web)) { throw "Cannot find $web. Run with -Root <your project folder>." }
+$backup = Join-Path $Root ("web_backup_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
+$count = 0
+Get-ChildItem -Path $src -Recurse -File | ForEach-Object {
+    $rel  = $_.FullName.Substring($src.Length).TrimStart('\', '/')
+    $dest = Join-Path $web $rel
+    if (Test-Path $dest) {
+        $bak = Join-Path $backup $rel
+        New-Item -ItemType Directory -Force -Path (Split-Path $bak) | Out-Null
+        Copy-Item $dest $bak -Force
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
+    Copy-Item $_.FullName $dest -Force
+    $count++
+}
+Write-Host "Copied $count files into $web"
+Write-Host "Originals of overwritten files are in: $backup"
+
+===== BACKEND =====
+
+
+===========================================================================
+FILE: api\app\main.py
+===========================================================================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.routers import events, runs
+
+app = FastAPI(title="RecoverRight API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(events.router)
+app.include_router(runs.router)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+===========================================================================
+FILE: api\app\routers\patients.py
+===========================================================================
+
+
+===========================================================================
+FILE: api\app\routers\plans.py
+===========================================================================
+
+
+===========================================================================
+FILE: api\app\routers\runs.py
+===========================================================================
+import asyncio
+import re
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+
+from app.pipeline import orchestrator
+from app.pipeline.review import ReviewError, apply_decision, blockers, build_approved_plan
+from app.schemas.document import SourceDocument
+from app.schemas.events import Stage
+from app.schemas.review import ReviewField
+from app.services.event_bus import bus
+from app.services.storage import store
+
+router = APIRouter(tags=["runs"])
+ALLOWED = {".docx", ".pdf"}
+MAX_BYTES = 15 * 1024 * 1024
+
+
+class FieldAction(BaseModel):
+    action: str
+    attrs: Optional[dict[str, Optional[str]]] = None
+    by: str = "staff"
+    note: Optional[str] = None
+
+
+class ApproveBody(BaseModel):
+    by: str = "staff"
+
+
+def _require(run_id: str) -> dict:
+    if not store.exists(run_id):
+        raise HTTPException(404, "run not found")
+    return store.read(run_id, "meta.json")
+
+
+def _items(run_id: str) -> list[ReviewField]:
+    if not store.has(run_id, "review.json"):
+        raise HTTPException(409, "the run has not finished processing yet")
+    return [ReviewField.model_validate(x) for x in store.read(run_id, "review.json")]
+
+
+@router.post("/runs")
+async def create_run(
+    file: UploadFile = File(...),
+    patient_name: str = Form("Demo Patient"),
+    language: str = Form("en"),
+    phone: str = Form(""),
+    guardian_name: str = Form(""),
+    guardian_phone: str = Form(""),
+    use_cache: bool = Form(True),
+):
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED:
+        raise HTTPException(415, "upload a .docx or .pdf file")
+    data = await file.read()
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, "file is larger than 15 MB")
+    if not data:
+        raise HTTPException(400, "the file is empty")
+    run_id = "run_" + uuid.uuid4().hex[:8]
+    stored = "source" + ext
+    store.dir(run_id).mkdir(parents=True, exist_ok=True)
+    (store.dir(run_id) / stored).write_bytes(data)
+    meta = {
+        "run_id": run_id, "status": "queued", "filename": re.sub(r"[^\w.\- ]", "_", file.filename or "document" + ext),
+        "stored_name": stored, "created_at": datetime.now(timezone.utc).isoformat(),
+        "patient": {"name": patient_name, "language": language, "phone": phone,
+                    "guardian_name": guardian_name, "guardian_phone": guardian_phone},
+        "counts": None, "error": None, "approved": False,
+    }
+    store.write(run_id, "meta.json", meta)
+    store.audit(run_id, "system", "run.created", filename=meta["filename"])
+    asyncio.create_task(orchestrator.run_pipeline(run_id, use_cache))
+    return {"run_id": run_id, "status": "queued"}
+
+
+@router.get("/runs")
+def list_runs():
+    return store.list_runs()
+
+
+@router.get("/runs/{run_id}")
+def get_run(run_id: str):
+    return _require(run_id)
+
+
+@router.get("/runs/{run_id}/source")
+def get_source(run_id: str):
+    meta = _require(run_id)
+    return FileResponse(store.dir(run_id) / meta["stored_name"], filename=meta["filename"])
+
+
+@router.get("/runs/{run_id}/review")
+def get_review(run_id: str):
+    meta = _require(run_id)
+    items = _items(run_id)
+    doc = SourceDocument.model_validate(store.read(run_id, "document.json"))
+    pending = blockers(items)
+    return {"run": meta, "blocks": [b.model_dump() for b in doc.blocks],
+            "fields": [i.model_dump(mode="json") for i in items],
+            "blockers": pending, "can_approve": not pending and not meta["approved"]}
+
+
+@router.patch("/runs/{run_id}/fields/{field_id}")
+def decide_field(run_id: str, field_id: str, body: FieldAction):
+    meta = _require(run_id)
+    if meta["approved"]:
+        raise HTTPException(409, "the plan is approved and locked")
+    with store.lock(run_id):
+        items = _items(run_id)
+        try:
+            it = apply_decision(items, field_id, body.action, body.attrs, body.by, body.note)
+        except KeyError:
+            raise HTTPException(404, "field not found")
+        except ReviewError as e:
+            raise HTTPException(422, str(e))
+        store.write(run_id, "review.json", items)
+        store.audit(run_id, body.by, f"field.{body.action}", field_id=field_id, attrs=body.attrs, note=body.note)
+    bus.emit(run_id, Stage.REVIEW, f"review.{body.action}", {"field_id": field_id, "by": body.by})
+    pending = blockers(items)
+    return {"field": it.model_dump(mode="json"), "blockers": pending, "can_approve": not pending}
+
+
+@router.post("/runs/{run_id}/approve")
+def approve(run_id: str, body: ApproveBody):
+    meta = _require(run_id)
+    if meta["approved"]:
+        raise HTTPException(409, "already approved")
+    with store.lock(run_id):
+        items = _items(run_id)
+        pending = blockers(items)
+        if pending:
+            raise HTTPException(409, {"message": f"{len(pending)} field(s) still need a decision", "blockers": pending})
+        plan = build_approved_plan(run_id, meta, items, body.by)
+        store.write(run_id, "plan_v1.json", plan)
+        store.update_meta(run_id, status="approved", approved=True, approved_by=body.by)
+        store.audit(run_id, body.by, "plan.approved", version=1, items=len(plan["items"]))
+    bus.emit(run_id, Stage.APPROVE, "plan.approved", {"version": 1, "approver": body.by, "items": len(plan["items"])})
+    return plan
+
+
+@router.get("/runs/{run_id}/plan")
+def get_plan(run_id: str):
+    _require(run_id)
+    if not store.has(run_id, "plan_v1.json"):
+        raise HTTPException(404, "the plan is not approved yet")
+    return store.read(run_id, "plan_v1.json")
+
+
+===========================================================================
+FILE: api\app\routers\events.py
+===========================================================================
+import asyncio
+import json
+from datetime import datetime
+
+from fastapi import APIRouter, HTTPException
+from sse_starlette.sse import EventSourceResponse
+
+from app.schemas.events import Stage
+from app.services.event_bus import RECORDINGS, bus
+
+router = APIRouter(tags=["events"])
+
+
+def _recording(run_id: str):
+    return RECORDINGS / f"{run_id}.jsonl"
+
+
+def _read_log(run_id: str) -> list[dict]:
+    live = bus._history.get(run_id)
+    if live:
+        return [json.loads(e.model_dump_json()) for e in live]
+    p = _recording(run_id)
+    if not p.exists():
+        raise HTTPException(404, "no events recorded for this run")
+    return [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+@router.get("/runs/{run_id}/events/log")
+def event_log(run_id: str):
+    """All events so far as JSON. The theater's replay mode and tests use this."""
+    return _read_log(run_id)
+
+
+@router.get("/runs/{run_id}/events")
+async def stream_events(run_id: str, after: int = 0, replay: bool = False, speed: float = 1.0):
+    """Server-Sent Events. Live by default; replay=true re-plays the recording with its original timing."""
+    has_live = bool(bus._history.get(run_id))
+    if replay or (not has_live and _recording(run_id).exists()):
+        events = _read_log(run_id)
+
+        async def replay_gen():
+            prev = None
+            for ev in events:
+                if ev["seq"] <= after:
+                    continue
+                ts = datetime.fromisoformat(ev["ts"].replace("Z", "+00:00"))
+                if prev is not None:
+                    await asyncio.sleep(min((ts - prev).total_seconds() / max(speed, 0.1), 1.5))
+                prev = ts
+                yield {"id": str(ev["seq"]), "data": json.dumps(ev)}
+
+        return EventSourceResponse(replay_gen())
+
+    async def live_gen():
+        async for ev in bus.stream(run_id, after):
+            yield {"id": str(ev.seq), "data": ev.model_dump_json()}
+
+    return EventSourceResponse(live_gen())
+
+
+async def _demo(run_id: str):
+    steps = [
+        (Stage.UPLOAD, "run.uploaded", {"filename": "knee_replacement.docx"}),
+        (Stage.PARSE, "parse.done", {"blocks": 42}),
+        (Stage.EXTRACT_A, "extract.a.done", {"fields": 14}),
+        (Stage.EXTRACT_B, "extract.b.done", {"fields": 13}),
+        (Stage.GROUND, "ground.field.fail", {"field": "medications[1].dose", "reason": "number not in quote"}),
+        (Stage.RECONCILE, "reconcile.done", {"agreed": 11, "review": 2, "conflict": 1}),
+    ]
+    for stage, type_, payload in steps:
+        bus.emit(run_id, stage, type_, payload)
+        await asyncio.sleep(1)
+
+
+@router.post("/demo/emit/{run_id}")
+async def demo_emit(run_id: str):
+    asyncio.create_task(_demo(run_id))
+    return {"ok": True}
+
+
+===========================================================================
+FILE: api\app\routers\webhooks.py
+===========================================================================
+
+
+===========================================================================
+FILE: api\app\db\models.py
+===========================================================================
+
+
+===========================================================================
+FILE: api\app\schemas\api.py
+===========================================================================
+
+
+===========================================================================
+FILE: api\app\schemas\plan.py
+===========================================================================
+from enum import Enum
+from typing import Literal, Optional
+from pydantic import BaseModel, Field
+
+
+class Sourced(BaseModel):
+    """Every extracted item must point back to the document."""
+    source_quote: str = Field(description="Exact text copied from the document")
+    block_id: str = Field(description="Id of the block the quote comes from")
+
+
+class Procedure(Sourced):
+    value: str
+
+
+class Medication(Sourced):
+    name: str
+    dose: Optional[str] = None
+    route: Optional[str] = None
+    frequency: Optional[str] = None
+    duration: Optional[str] = None
+
+
+class Instruction(Sourced):
+    instruction: str
+
+
+class WoundCare(Instruction):
+    pass
+
+
+class Diet(Instruction):
+    pass
+
+
+class Activity(Instruction):
+    restriction_type: Literal["avoid", "limit", "allowed", "unspecified"] = "unspecified"
+
+
+class FollowUp(Sourced):
+    what: str
+    when: Optional[str] = None
+    where: Optional[str] = None
+
+
+class WarningSign(Sourced):
+    text: str
+
+
+class Contact(Sourced):
+    label: str
+    value: str
+
+
+class MissingField(BaseModel):
+    field: str
+    reason: str
+
+
+class ExtractedPlan(BaseModel):
+    procedure: Optional[Procedure] = None
+    medications: list[Medication] = Field(default_factory=list)
+    wound_care: list[WoundCare] = Field(default_factory=list)
+    activity: list[Activity] = Field(default_factory=list)
+    diet: list[Diet] = Field(default_factory=list)
+    follow_ups: list[FollowUp] = Field(default_factory=list)
+    warning_signs: list[WarningSign] = Field(default_factory=list)
+    contacts: list[Contact] = Field(default_factory=list)
+    missing: list[MissingField] = Field(default_factory=list)
+
+
+class GroundStatus(str, Enum):
+    GROUNDED = "grounded"
+    WEAK = "weak"
+    FAILED = "failed"
+
+
+class GroundResult(BaseModel):
+    path: str  # e.g. "medications[1].dose"
+    status: GroundStatus
+    reason: Optional[str] = None
+
+
+class FieldStatus(str, Enum):
+    AGREED = "agreed"
+    REVIEW = "review"
+    CONFLICT = "conflict"
+    REJECTED = "rejected"
+    MISSING = "missing"
+
+
+===========================================================================
+FILE: api\app\services\storage.py
+===========================================================================
+"""Tiny file-based store: one folder per run under data/runs. Zero infrastructure, easy to inspect."""
+import json
+import os
+import threading
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def runs_dir() -> Path:
+    return Path(os.getenv("RR_RUNS_DIR", ROOT / "data" / "runs"))
+
+
+def _dump(obj: Any):
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(mode="json")
+    if isinstance(obj, list):
+        return [_dump(o) for o in obj]
+    if isinstance(obj, dict):
+        return {k: _dump(v) for k, v in obj.items()}
+    return obj
+
+
+class RunStore:
+    def __init__(self) -> None:
+        self._locks: dict[str, threading.RLock] = {}
+
+    def lock(self, run_id: str) -> threading.RLock:
+        return self._locks.setdefault(run_id, threading.RLock())
+
+    def dir(self, run_id: str) -> Path:
+        return runs_dir() / run_id
+
+    def exists(self, run_id: str) -> bool:
+        return (self.dir(run_id) / "meta.json").exists()
+
+    def write(self, run_id: str, name: str, obj: Any) -> None:
+        d = self.dir(run_id)
+        d.mkdir(parents=True, exist_ok=True)
+        with self.lock(run_id):
+            (d / name).write_text(json.dumps(_dump(obj), indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def read(self, run_id: str, name: str) -> Any:
+        return json.loads((self.dir(run_id) / name).read_text(encoding="utf-8"))
+
+    def has(self, run_id: str, name: str) -> bool:
+        return (self.dir(run_id) / name).exists()
+
+    def update_meta(self, run_id: str, **changes) -> dict:
+        with self.lock(run_id):
+            meta = self.read(run_id, "meta.json")
+            meta.update(changes)
+            self.write(run_id, "meta.json", meta)
+            return meta
+
+    def audit(self, run_id: str, actor: str, action: str, **detail) -> None:
+        line = json.dumps({"ts": datetime.now(timezone.utc).isoformat(), "actor": actor,
+                           "action": action, **detail}, ensure_ascii=False)
+        with self.lock(run_id):
+            with open(self.dir(run_id) / "audit.jsonl", "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+
+    def list_runs(self) -> list[dict]:
+        base = runs_dir()
+        if not base.exists():
+            return []
+        metas = [json.loads(p.read_text(encoding="utf-8")) for p in base.glob("*/meta.json")]
+        return sorted(metas, key=lambda m: m.get("created_at", ""), reverse=True)
+
+
+store = RunStore()
+
+
+===========================================================================
+FILE: api\app\config.py
+===========================================================================
+import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]   # E:\recoverright
+ENV_FILE = ROOT / ".env"
+
+
+def _read_env(path: Path) -> dict:
+    """Read KEY=VALUE lines directly, ignoring hidden characters."""
+    values = {}
+    if not path.is_file():
+        return values
+    text = path.read_text(encoding="utf-8-sig", errors="ignore")
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        values[key.strip()] = val.strip().strip('"').strip("'")
+    return values
+
+
+_values = _read_env(ENV_FILE)
+
+
+def _get(name: str, default: str = "") -> str:
+    return _values.get(name) or os.getenv(name) or default
+
+
+GROQ_API_KEY = _get("GROQ_API_KEY")
+MODEL_A = _get("MODEL_A", "llama-3.3-70b-versatile")
+MODEL_B = _get("MODEL_B", "openai/gpt-oss-20b")
+HAS_KEY = bool(GROQ_API_KEY)
+
+if not HAS_KEY:
+    print(f"[config] No GROQ_API_KEY found. File: {ENV_FILE} (exists: {ENV_FILE.is_file()}), "
+          f"names parsed: {list(_values.keys())}")
+
+===== FRONTEND CONFIG =====
+
+
+===========================================================================
+FILE: web\package.json
+===========================================================================
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@xyflow/react": "^12.12.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.4.0",
+    "framer-motion": "^14.3.0",
+    "lucide-react": "^1.57.0",
+    "next": "16.4.1",
+    "next-intl": "^4.14.9",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "shadcn": "^4.21.5",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+
+===========================================================================
+FILE: web\next.config.ts
+===========================================================================
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+  cacheComponents: true,
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+};
+
+export default nextConfig;
+
+
+===========================================================================
+FILE: web\tsconfig.json
+===========================================================================
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+
+===== FRONTEND API AND TYPES =====
+
+
+===========================================================================
+FILE: web\lib\api.ts
+===========================================================================
+import type { Action, Attrs, DecisionResult, ReviewData, RunMeta } from "./types";
+
+export const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+export class ApiError extends Error {
+  status: number;
+  detail: unknown;
+  constructor(status: number, detail: unknown) {
+    super(typeof detail === "string" ? detail : `Request failed (${status})`);
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+async function parse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail: unknown = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      /* body was not JSON */
+    }
+    if (typeof detail === "object" && detail !== null && "message" in detail) {
+      throw new ApiError(res.status, (detail as { message: string }).message);
+    }
+    throw new ApiError(res.status, detail);
+  }
+  return (await res.json()) as T;
+}
+
+export const api = {
+  listRuns: () => fetch(`${API}/runs`, { cache: "no-store" }).then((r) => parse<RunMeta[]>(r)),
+  getRun: (id: string) => fetch(`${API}/runs/${id}`, { cache: "no-store" }).then((r) => parse<RunMeta>(r)),
+  getReview: (id: string) => fetch(`${API}/runs/${id}/review`, { cache: "no-store" }).then((r) => parse<ReviewData>(r)),
+  createRun: (form: FormData) =>
+    fetch(`${API}/runs`, { method: "POST", body: form }).then((r) => parse<{ run_id: string }>(r)),
+  decide: (id: string, fieldId: string, action: Action, attrs?: Attrs, by = "Nurse") =>
+    fetch(`${API}/runs/${id}/fields/${encodeURIComponent(fieldId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, attrs: attrs ?? null, by }),
+    }).then((r) => parse<DecisionResult>(r)),
+  approve: (id: string, by: string) =>
+    fetch(`${API}/runs/${id}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ by }),
+    }).then((r) => parse<unknown>(r)),
+  sourceUrl: (id: string) => `${API}/runs/${id}/source`,
+};
+
+
+===========================================================================
+FILE: web\lib\types.ts
+===========================================================================
+export type Status = "agreed" | "review" | "conflict" | "rejected";
+export type RunStatus = "queued" | "processing" | "needs_review" | "approved" | "failed";
+export type Action = "confirm" | "edit" | "reject";
+export type Attrs = Record<string, string | null>;
+
+export interface Patient {
+  name: string;
+  language: string;
+  phone: string;
+  guardian_name: string;
+  guardian_phone: string;
+}
+
+export interface RunMeta {
+  run_id: string;
+  status: RunStatus;
+  filename: string;
+  created_at: string;
+  patient: Patient;
+  counts: Record<Status, number> | null;
+  error: string | null;
+  approved: boolean;
+  approved_by?: string;
+  cached?: boolean;
+}
+
+export interface Block {
+  block_id: string;
+  type: "heading" | "paragraph" | "table_row" | "list_item";
+  page: number | null;
+  text: string;
+  low_confidence: boolean;
+  table_id: string | null;
+  row_index: number | null;
+  cells: string[] | null;
+}
+
+export interface Opinion {
+  voter: "A" | "B" | "rules";
+  path: string;
+  attrs: Attrs;
+  block_id: string;
+  quote: string;
+  units: string[];
+  trusted: boolean;
+  ground_issues: string[];
+}
+
+export interface ReconciledField {
+  field_id: string;
+  category: string;
+  status: Status;
+  critical: boolean;
+  proposed: Attrs | null;
+  proposed_from: string | null;
+  block_id: string | null;
+  quote: string | null;
+  units: string[];
+  voters: string[];
+  opinions: Opinion[];
+  issues: string[];
+}
+
+export interface Decision {
+  action: Action;
+  attrs: Attrs | null;
+  by: string;
+  at: string;
+  note: string | null;
+}
+
+export interface ReviewField {
+  field: ReconciledField;
+  decision: Decision | null;
+}
+
+export interface Blocker {
+  field_id: string;
+  category: string;
+  status: Status;
+  reason: string;
+}
+
+export interface ReviewData {
+  run: RunMeta;
+  blocks: Block[];
+  fields: ReviewField[];
+  blockers: Blocker[];
+  can_approve: boolean;
+}
+
+export interface ApiEvent {
+  run_id: string;
+  seq: number;
+  ts: string;
+  stage: string;
+  type: string;
+  payload: Record<string, unknown>;
+}
+
+export interface DecisionResult {
+  field: ReviewField;
+  blockers: Blocker[];
+  can_approve: boolean;
+}
+
+
+===========================================================================
+FILE: web\lib\patient.ts
+===========================================================================
+import { currentAttrs } from "./review";
+import type { ReviewData } from "./types";
+
+export interface PlanMed { id: string; name: string; dose: string | null; frequency: string | null; duration: string | null; times: string[] }
+export interface PlanFollowUp { id: string; what: string; when: string | null; where: string | null }
+export type InstructionKey = "wound_care" | "activity" | "diet" | "warning_signs";
+export interface PlanView {
+  patientName: string;
+  phone: string;
+  meds: PlanMed[];
+  followUps: PlanFollowUp[];
+  instructions: Record<InstructionKey, string[]>;
+  contacts: { label: string; value: string }[];
+  demo: boolean;
+}
+
+const fmt = (h: number) => {
+  const hh = ((h % 24) + 24) % 24;
+  return `${hh % 12 === 0 ? 12 : hh % 12}:00 ${hh < 12 ? "AM" : "PM"}`;
+};
+
+/** Turns the wording of a frequency into clock times. Anything unclear (as needed, until review) gets no times. */
+export function timesFor(freq: string | null): string[] {
+  const f = (freq ?? "").toLowerCase();
+  if (!f || /as needed|prn|when required/.test(f)) return [];
+  const every = f.match(/every\s+(\d{1,2})\s*(?:hours?|hrs?|h)\b/);
+  if (every) {
+    const n = Number(every[1]);
+    if (n >= 3 && n <= 24) return Array.from({ length: Math.ceil(24 / n) }, (_, i) => fmt(8 + i * n)).slice(0, Math.floor(24 / n) || 1);
+  }
+  if (/(four|4)\s*times|qid/.test(f)) return [8, 12, 16, 20].map(fmt);
+  if (/(three|3)\s*times|tid|thrice/.test(f)) return [8, 14, 20].map(fmt);
+  if (/twice|(two|2)\s*times|bid|b\.i\.d/.test(f)) return [8, 20].map(fmt);
+  if (/once|daily|every day|(one|1)\s*time|at night|morning/.test(f)) return [/night|bedtime/.test(f) ? 21 : 8].map(fmt);
+  return [];
+}
+
+export function toMinutes(t: string): number {
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/);
+  if (!m) return 0;
+  return (Number(m[1]) % 12) * 60 + Number(m[2]) + (m[3] === "PM" ? 720 : 0);
+}
+
+export function planFromReview(d: ReviewData): PlanView {
+  const plan: PlanView = {
+    patientName: d.run.patient.name, phone: d.run.patient.phone, meds: [], followUps: [], contacts: [], demo: false,
+    instructions: { wound_care: [], activity: [], diet: [], warning_signs: [] },
+  };
+  for (const it of d.fields) {
+    const f = it.field;
+    if (it.decision?.action === "reject") continue;
+    if (f.status === "rejected" && it.decision?.action !== "edit" && it.decision?.action !== "confirm") continue;
+    const a = currentAttrs(it);
+    if (!a) continue;
+    if (f.category === "medications") {
+      plan.meds.push({ id: f.field_id, name: a.name ?? "Medicine", dose: a.dose ?? null, frequency: a.frequency ?? null, duration: a.duration ?? null, times: timesFor(a.frequency ?? null) });
+    } else if (f.category === "follow_ups") {
+      plan.followUps.push({ id: f.field_id, what: a.what ?? "Follow-up", when: a.when ?? null, where: a.where ?? null });
+    } else if (f.category === "contacts") {
+      if (a.value) plan.contacts.push({ label: a.label ?? "Care team", value: a.value });
+    } else if (f.category === "wound_care" || f.category === "activity" || f.category === "diet") {
+      if (a.instruction) plan.instructions[f.category].push(a.instruction);
+    } else if (f.category === "warning_signs") {
+      if (a.text) plan.instructions.warning_signs.push(a.text);
+    }
+  }
+  return plan;
+}
+
+export const demoPlan: PlanView = {
+  patientName: "Priya Sharma", phone: "", demo: true,
+  meds: [
+    { id: "m1", name: "Paracetamol", dose: "500 mg", frequency: "Three times daily", duration: "5 days", times: timesFor("Three times daily") },
+    { id: "m2", name: "Amoxicillin", dose: "500 mg", frequency: "Twice daily", duration: "5 days", times: timesFor("Twice daily") },
+    { id: "m3", name: "Pantoprazole", dose: "40 mg", frequency: "Once daily", duration: "14 days", times: timesFor("Once daily") },
+  ],
+  followUps: [{ id: "f1", what: "Post-surgery follow-up", when: "28 Apr 2025, 10:00 AM", where: "CityCare Hospital, Dr. Mehta" }],
+  instructions: {
+    wound_care: ["Keep the area clean and dry.", "Do not soak the wound until the stitches are removed."],
+    activity: ["Use support when walking.", "Do not drive until reviewed by the surgeon."],
+    diet: ["Stay hydrated and eat light meals."],
+    warning_signs: ["Fever, increased pain, or swelling that is getting worse.", "Heavy bleeding from the wound."],
+  },
+  contacts: [{ label: "Nurse Anita Singh, care coordinator", value: "+91 00000 00000" }],
+};
+
+===== PATIENT APP =====
+
+
+===========================================================================
+FILE: web\app\p\[token]\page.tsx
+===========================================================================
+FILE NOT FOUND
+
+
+===========================================================================
+FILE: web\app\p\[token]\help\page.tsx
+===========================================================================
+FILE NOT FOUND
+
+
+===========================================================================
+FILE: web\components\patient\PatientLoader.tsx
+===========================================================================
+"use client";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { demoPlan, planFromReview, type PlanView } from "@/lib/patient";
+import PatientHome from "./PatientHome";
+
+type State = { kind: "loading" } | { kind: "ready"; plan: PlanView } | { kind: "waiting" } | { kind: "missing" };
+
+/** Until the secure-link step exists, the token is the run id. Only approved plans are shown. */
+export default function PatientLoader({ token }: { token: string }) {
+  const [s, setS] = useState<State>(token === "demo" ? { kind: "ready", plan: demoPlan } : { kind: "loading" });
+
+  useEffect(() => {
+    if (token === "demo") return;
+    let alive = true;
+    api.getReview(token)
+      .then((d) => alive && setS(d.run.approved ? { kind: "ready", plan: planFromReview(d) } : { kind: "waiting" }))
+      .catch(() => alive && setS({ kind: "missing" }));
+    return () => { alive = false; };
+  }, [token]);
+
+  if (s.kind === "ready") return <PatientHome plan={s.plan} token={token} />;
+  return (
+    <div className="pt" style={{ display: "grid", placeItems: "center", padding: 24, gridTemplateColumns: "1fr" }}>
+      <div className="pt-card" style={{ maxWidth: 420, textAlign: "center" }}>
+        {s.kind === "loading" && <p>Loading your plan…</p>}
+        {s.kind === "waiting" && <><h2>Your plan is not ready yet</h2><small>Your care team is still checking it. Please come back soon.</small></>}
+        {s.kind === "missing" && <><h2>We could not find this plan</h2><small>Check the link, or ask your care team to send it again.</small></>}
+      </div>
+    </div>
+  );
+}
+
+
+===========================================================================
+FILE: web\components\patient\PatientHome.tsx
+===========================================================================
+"use client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon } from "@/components/staff/icons";
+import { API } from "@/lib/api";
+import { toMinutes, type InstructionKey, type PlanView } from "@/lib/patient";
+import { dialable, sendHelpRequest, type HelpSource, type HelpStatus } from "@/lib/voice/help";
+import type { Detection, Severity } from "@/lib/voice/phrases";
+import { cancelSpeech, playAlarm, speak } from "@/lib/voice/speak";
+import HelpAlert from "./HelpAlert";
+import { useSafetyMic, type VoiceState } from "./useSafetyMic";
+
+interface AlertState {
+  id: number; heard: string; label: string; severity: Severity; source: HelpSource; openedAt: number;
+  status: HelpStatus; confirmClose: boolean; soundBlocked: boolean;
+}
+interface Toast { id: number; text: string; tone: "ok" | "info" | "warn" }
+
+const HELP_PATH = process.env.NEXT_PUBLIC_HELP_PATH || "/help";
+const EMERGENCY_NUMBER = process.env.NEXT_PUBLIC_EMERGENCY_NUMBER || "";
+const RETRY_DELAYS = [0, 2500, 6000]; // automatic attempts while the emergency screen is open
+const TEST_PHRASES = ["I feel unwell", "I need help", "chest pain", "I feel dizzy", "I can't breathe"];
+const todayKey = (token: string) => `rr-pt:${token}:${new Date().toISOString().slice(0, 10)}`;
+
+const MIC_COPY: Record<VoiceState, { tone: "ok" | "wait" | "bad" | "off"; title: string }> = {
+  idle: { tone: "wait", title: "Getting ready" },
+  starting: { tone: "wait", title: "Opening the microphone…" },
+  listening: { tone: "ok", title: "Listening" },
+  reconnecting: { tone: "wait", title: "Reconnecting…" },
+  "needs-tap": { tone: "off", title: "One tap needed" },
+  blocked: { tone: "bad", title: "Microphone blocked" },
+  "no-mic": { tone: "bad", title: "No microphone found" },
+  insecure: { tone: "bad", title: "Needs a secure page" },
+  unsupported: { tone: "bad", title: "Voice not supported" },
+  error: { tone: "bad", title: "Listening stopped" },
+  off: { tone: "off", title: "Voice safety is off" },
+};
+
+const SECTIONS: { key: InstructionKey; title: string; icon: keyof typeof Icon; tone: string }[] = [
+  { key: "wound_care", title: "Wound care", icon: "shield", tone: "teal" },
+  { key: "activity", title: "Activity and movement", icon: "walk", tone: "green" },
+  { key: "diet", title: "Diet and hydration", icon: "heart", tone: "amber" },
+  { key: "warning_signs", title: "Warning signs", icon: "alert", tone: "red" },
+];
+
+const minutesNow = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const phoneOf = (s: string) => (/\+?\d[\d\s()-]{6,}/.exec(s)?.[0] ?? "").replace(/[^\d+]/g, "");
+
+export default function PatientHome({ plan, token = "demo" }: { plan: PlanView; token?: string }) {
+  const first = plan.patientName.split(/\s+/)[0] || "there";
+  const [greet, setGreet] = useState("Hello");
+  const [today, setToday] = useState("");
+  const [taken, setTaken] = useState<Set<string>>(new Set());
+  const [doneTasks, setDoneTasks] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<InstructionKey | null>(null);
+  const [alert, setAlert] = useState<AlertState | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [testText, setTestText] = useState("");
+  const [localSaved, setLocalSaved] = useState(false);
+  const alertRef = useRef<AlertState | null>(null);
+  const simSource = useRef(false);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const d = new Date();
+    setGreet(d.getHours() < 12 ? "Good morning" : d.getHours() < 18 ? "Good afternoon" : "Good evening");
+    setToday(d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+    setNow(minutesNow());
+    const id = setInterval(() => setNow(minutesNow()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const doses = useMemo(
+    () => plan.meds.flatMap((m) => m.times.map((t) => ({ key: `${m.id}@${t}`, med: m, time: t, at: toMinutes(t) }))).sort((a, b) => a.at - b.at),
+    [plan.meds],
+  );
+  const nextDose = doses.find((d) => !taken.has(d.key) && d.at >= now) ?? doses.find((d) => !taken.has(d.key));
+  const phone = plan.contacts.map((c) => phoneOf(c.value)).find((p) => p && dialable(p)) || plan.contacts.map((c) => phoneOf(c.value)).find(Boolean) || phoneOf(plan.phone);
+  const canCall = dialable(phone);
+  const firstFollow = plan.followUps[0];
+  const missingDate = !firstFollow?.when;
+
+  const tasks = [
+    { id: "care", icon: "shield" as const, title: "Morning care", sub: plan.instructions.wound_care[0] ?? "Check your dressing is clean and dry" },
+    { id: "med", icon: "pill" as const, title: "Take your medicine", sub: nextDose ? `Next: ${nextDose.med.name} at ${nextDose.time}` : plan.meds.length ? "Take as written on your plan" : "No medicines on your plan" },
+    { id: "move", icon: "walk" as const, title: "Recovery exercises", sub: plan.instructions.activity[0] ?? "Move as your care team advised" },
+    ...(plan.followUps.length ? [{ id: "fu", icon: "calendar" as const, title: "Follow-up appointment", sub: missingDate ? "Date not provided: call your care team" : `${firstFollow.when}` }] : []),
+  ];
+  const done = tasks.filter((t) => doneTasks.has(t.id)).length;
+  const pct = Math.round((done / tasks.length) * 100);
+  const toggle = (id: string) => setDoneTasks((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const showToast = useCallback((text: string, tone: Toast["tone"] = "ok") => setToast({ id: Date.now(), text, tone }), []);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 5200); return () => clearTimeout(t); }, [toast]);
+
+  // ---- tasks and doses: saved on THIS DEVICE only (the backend has no endpoint for them), per day, and labelled as such.
+  const storeKey = useMemo(() => todayKey(token), [token]);
+  // Hydration flag is STATE, not a ref: saving must wait for the render in which the loaded values are applied.
+  // (A ref flipped inside the load effect let the save effect overwrite stored ticks with the empty initial state.)
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storeKey);
+      if (raw) { const j = JSON.parse(raw) as { taken?: string[]; tasks?: string[] }; setTaken(new Set(j.taken ?? [])); setDoneTasks(new Set(j.tasks ?? [])); setLocalSaved(true); }
+    } catch { /* storage blocked or corrupt: start fresh */ }
+    setHydrated(true);
+  }, [storeKey]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(storeKey, JSON.stringify({ taken: [...taken], tasks: [...doneTasks] })); setLocalSaved(true); } catch { /* storage blocked */ }
+  }, [hydrated, taken, doneTasks, storeKey]);
+
+  const mic = useSafetyMic({
+    onDistress: (d, heard, info) => triggerAlertRef.current(d, heard, simSource.current ? "test" : "voice", info.escalation),
+    onTook: () => markNextRef.current(true),
+  });
+
+  /** Speak without the microphone hearing the app's own voice. */
+  const say = useCallback(async (text: string) => {
+    mic.speakStart(text);
+    try { return await speak(text); } finally { mic.speakEnd(); }
+  }, [mic]);
+
+  const markDose = (key: string, via: "voice" | "tap") => {
+    const dose = doses.find((d) => d.key === key);
+    if (!dose) return;
+    const wasTaken = taken.has(key);
+    setTaken((s) => { const n = new Set(s); if (wasTaken) n.delete(key); else n.add(key); return n; });
+    if (!wasTaken) setDoneTasks((s) => new Set(s).add("med"));
+    const msg = wasTaken ? `Unmarked ${dose.med.name} (${dose.time}).` : `Marked ${dose.med.name} (${dose.time}) as taken.`;
+    showToast(msg, wasTaken ? "info" : "ok");
+    if (via === "voice" && !wasTaken) void say(`Okay, I marked ${dose.med.name} as taken.`);
+  };
+  const markNext = (viaVoice: boolean) => {
+    if (!nextDose) { showToast("No dose is waiting right now.", "info"); if (viaVoice) void say("There is no dose waiting right now."); return; }
+    markDose(nextDose.key, viaVoice ? "voice" : "tap");
+  };
+  const markNextRef = useRef(markNext);
+  markNextRef.current = markNext;
+
+  // ---- emergency flow
+  const patch = useCallback((id: number, p: Partial<AlertState>) => {
+    const cur = alertRef.current;
+    if (!cur || cur.id !== id) return;
+    const next = { ...cur, ...p };
+    alertRef.current = next;
+    setAlert(next);
+  }, []);
+
+  const deliver = useCallback(async (a: AlertState, attempts: number[]) => {
+    for (let i = 0; i < attempts.length; i++) {
+      if (attempts[i]) await new Promise((r) => setTimeout(r, attempts[i]));
+      if (alertRef.current?.id !== a.id) return; // closed meanwhile
+      patch(a.id, { status: { kind: "sending", attempt: i + 1 } });
+      const res = await sendHelpRequest(
+        { token, patient_name: plan.patientName, heard: a.heard, severity: a.severity, label: a.label, source: a.source, demo: plan.demo, client_time: new Date().toISOString() },
+        { base: API, path: HELP_PATH, isOnline: () => (typeof navigator === "undefined" ? true : navigator.onLine !== false) },
+      );
+      if (alertRef.current?.id !== a.id) return;
+      if (res.ok) { patch(a.id, { status: { kind: "sent", at: res.at } }); void say("Your care team has been alerted. Stay where you are."); return; }
+      if (i === attempts.length - 1) {
+        patch(a.id, { status: { kind: "failed", reason: res.reason, attempts: attempts.length } });
+        void say("I could not reach your care team. Please call them now with the red button.");
+      }
+    }
+  }, [token, plan.patientName, plan.demo, patch, say]);
+
+  const triggerAlert = (d: Detection, heard: string, source: HelpSource, escalation: boolean) => {
+    const cur = alertRef.current;
+    if (cur) { // an emergency screen is already open: only upgrade it, never stack or re-send
+      if (escalation && d.severity === "critical" && cur.severity !== "critical") {
+        patch(cur.id, { severity: "critical", label: d.label, heard });
+        void playAlarm("critical");
+        void say("This sounds serious. Please call now.");
+      }
+      return;
+    }
+    const a: AlertState = { id: Date.now(), heard, label: d.label, severity: d.severity, source, openedAt: Date.now(), status: { kind: "sending", attempt: 1 }, confirmClose: false, soundBlocked: false };
+    alertRef.current = a;
+    setAlert(a);
+    void playAlarm(d.severity).then((ok) => { if (!ok) patch(a.id, { soundBlocked: true }); });
+    void say(`I heard you. It sounds like you may be ${d.label}. I am trying to alert your care team. If this is an emergency, call now.`);
+    void deliver(a, RETRY_DELAYS);
+  };
+  const triggerAlertRef = useRef(triggerAlert);
+  triggerAlertRef.current = triggerAlert;
+
+  const retryAlert = () => { const a = alertRef.current; if (a) { patch(a.id, { confirmClose: false }); void deliver(a, [0]); } };
+  const closeAlert = () => {
+    const a = alertRef.current;
+    if (!a) return;
+    if (a.status.kind !== "sent" && !a.confirmClose) { patch(a.id, { confirmClose: true }); return; } // never let a failed alert vanish silently
+    cancelSpeech();
+    alertRef.current = null;
+    setAlert(null);
+    mic.rearm(); // listen for a new emergency straight away
+    showToast(a.status.kind === "sent" ? "Alert closed. Your care team had been alerted." : "Alert closed. Your care team was NOT notified.", a.status.kind === "sent" ? "ok" : "warn");
+  };
+  const manualHelp = () => {
+    simSource.current = false;
+    triggerAlert({ severity: "concern", kind: "help", label: "needing help", phrase: "button" }, "I pressed the help button", "button", false);
+  };
+  const runTest = (text: string) => {
+    if (!text.trim()) return;
+    simSource.current = true;
+    try { mic.simulate(text); } finally { simSource.current = false; }
+    setTestText("");
+  };
+
+  return (
+    <div className="pt">
+      {alert && <HelpAlert heard={alert.heard} label={alert.label} severity={alert.severity} source={alert.source} phone={phone} phoneDialable={canCall} demo={plan.demo}
+        status={alert.status} openedAt={alert.openedAt} confirmClose={alert.confirmClose} soundBlocked={alert.soundBlocked} emergencyNumber={EMERGENCY_NUMBER || undefined}
+        onRetry={retryAlert} onClose={closeAlert} />}
+      {toast && <div className={`pt-toast is-${toast.tone}`} role="status" aria-live="polite" key={toast.id}>{toast.text}</div>}
+      <aside className="pt-side">
+        <div className="pt-brand"><span><Icon.heart size={22} /></span><div><b>RecoverRight</b><small>Your recovery companion</small></div></div>
+        <nav>
+          <a href="#home" className="is-on"><Icon.home size={18} />Home</a>
+          <a href="#plan"><Icon.list size={18} />My plan</a>
+          <a href="#medications"><Icon.pill size={18} />Medications</a>
+          <a href="#instructions"><Icon.book size={18} />Instructions</a>
+          <a href="#appointments"><Icon.calendar size={18} />Appointments</a>
+          <a href="#help"><Icon.chat size={18} />Help</a>
+        </nav>
+        <p className="pt-safe"><Icon.lock size={14} /> Your plan was checked and approved by your care team.</p>
+      </aside>
+
+      <main className="pt-main" id="home">
+        {plan.demo && <p className="pt-demo">Demo data. Open a real plan with its approved link.</p>}
+        <header className="pt-top"><span className="pt-date"><Icon.calendar size={16} />{today}</span><a href="#voice" className={`pt-micpill is-${MIC_COPY[mic.state].tone}`} aria-label={`Voice safety: ${MIC_COPY[mic.state].title}`}><Icon.mic size={14} /> {MIC_COPY[mic.state].title}</a><span className="pt-avatar">{first[0]?.toUpperCase()}</span></header>
+
+        <div className="pt-grid">
+          <section className="pt-col">
+            <div className="pt-hero">
+              <h1>{greet}, {first}!</h1>
+              <p>Your recovery plan</p>
+              <small>Small steps every day lead to big progress.</small>
+            </div>
+
+            <div className="pt-card pt-progress" id="plan">
+              <div>
+                <h2>Today’s progress</h2>
+                <p>{done} of {tasks.length} tasks completed</p>
+                <div className="pt-bar"><i style={{ width: `${pct}%` }} /></div>
+              </div>
+              <div className="pt-ring" style={{ background: `conic-gradient(var(--pt) ${pct * 3.6}deg, #d8ece9 0)` }}><span>{pct}%</span></div>
+            </div>
+
+            <div className="pt-card">
+              <div className="pt-head"><h2>Your tasks</h2></div>
+              <ul className="pt-tasks">
+                {tasks.map((t) => {
+                  const I = Icon[t.icon];
+                  const isDone = doneTasks.has(t.id);
+                  const warn = t.id === "fu" && missingDate;
+                  return (
+                    <li key={t.id} className={isDone ? "is-done" : ""}>
+                      <span className={`pt-ic pt-ic--${isDone ? "green" : warn ? "amber" : "teal"}`}>{isDone ? <Icon.check size={22} /> : <I size={22} />}</span>
+                      <div><b>{t.title}</b><small>{t.sub}</small></div>
+                      <button className={`pt-chip${isDone ? " is-ok" : warn ? " is-warn" : ""}`} onClick={() => toggle(t.id)} aria-pressed={isDone}>
+                        {isDone ? "Done" : warn ? "Needs attention" : "Mark done"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div className="pt-two">
+              <div className="pt-card" id="medications">
+                <div className="pt-head"><h2>My medications</h2></div>
+                {plan.meds.length > 0 && <small className="pt-local">{localSaved ? "Ticks are saved on this device only. They are not sent to your care team." : "Tap a time when you take a dose. Ticks stay on this device only."}</small>}
+                {plan.meds.length === 0 ? <small>No medicines were found on your plan.</small> : (
+                  <ul className="pt-meds">
+                    {plan.meds.map((m) => {
+                      const nd = nextDose?.med.id === m.id ? nextDose : undefined;
+                      return (
+                        <li key={m.id}>
+                          <span className="pt-ic pt-ic--green"><Icon.pill size={20} /></span>
+                          <div>
+
+
+===========================================================================
+FILE: web\components\patient\HelpAlert.tsx
+===========================================================================
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/staff/icons";
+import type { HelpStatus } from "@/lib/voice/help";
+import type { Severity } from "@/lib/voice/phrases";
+
+export interface HelpAlertProps {
+  heard: string;
+  label: string;
+  severity: Severity;
+  source: "voice" | "button" | "test";
+  phone: string;
+  /** False for empty or placeholder numbers: the call button is replaced by an honest explanation. */
+  phoneDialable: boolean;
+  demo: boolean;
+  status: HelpStatus;
+  openedAt: number;
+  /** The person tried to close while the care team had not been notified. */
+  confirmClose: boolean;
+  soundBlocked: boolean;
+  emergencyNumber?: string;
+  onRetry: () => void;
+  onClose: () => void;
+}
+
+const mmss = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, "0")}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+const clockTime = (t: number) => new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+/** Full-screen emergency view. It only says "sent" when the backend really answered 2xx. */
+export default function HelpAlert(p: HelpAlertProps) {
+  const root = useRef<HTMLDivElement>(null);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => { try { navigator.vibrate?.([300, 150, 300, 150, 300]); } catch { /* not supported */ } }, []);
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Date.now() - p.openedAt), 1000);
+    return () => clearInterval(id);
+  }, [p.openedAt]);
+
+  // Focus the safest action on open and keep keyboard focus inside the dialog.
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const prev = document.activeElement as HTMLElement | null;
+    (el.querySelector<HTMLElement>("[data-first]") ?? el).focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const f = Array.from(el.querySelectorAll<HTMLElement>("a[href],button:not([disabled])"));
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    el.addEventListener("keydown", trap);
+    return () => { el.removeEventListener("keydown", trap); prev?.focus?.(); };
+  }, []);
+
+  const s = p.status;
+  const critical = p.severity === "critical";
+  const phoneLine = p.phone.replace(/[^\d+]/g, "");
+
+  return (
+    <div className={`pt-alert${critical ? " is-critical" : ""}`} role="alertdialog" aria-modal="true" aria-labelledby="pt-alert-h" aria-describedby="pt-alert-d" ref={root} tabIndex={-1}>
+      <div>
+        <span className="pt-alert-ic"><Icon.alert size={40} /></span>
+        <h2 id="pt-alert-h">{critical ? "This sounds serious" : "Are you feeling unwell?"}</h2>
+        <p id="pt-alert-d">I heard: “{p.heard}” <small className="pt-alert-tag">{p.source === "voice" ? "voice" : p.source === "test" ? "test phrase" : "button"} · {mmss(elapsed)}</small></p>
+
+        {/* The truth about whether the care team has been told. */}
+        <div className={`pt-alert-status is-${s.kind}`} role="status" aria-live="assertive">
+          {s.kind === "sending" && <><i className="pt-spin-w" /> <span>Alerting your care team{s.attempt > 1 ? ` (attempt ${s.attempt})` : ""}…</span></>}
+          {s.kind === "sent" && <><Icon.check size={20} /> <span><b>Your care team was alerted</b> at {clockTime(s.at)}.{p.demo ? " (Demo plan)" : ""}</span></>}
+          {s.kind === "failed" && <><Icon.x size={20} /> <span><b>Help has NOT been sent.</b> {s.reason} Call your care team now.</span></>}
+          {s.kind === "idle" && <span>Not sent yet.</span>}
+        </div>
+        {s.kind === "failed" && <button className="pt-btn pt-btn--line pt-alert-btn pt-alert-retry" onClick={p.onRetry}><Icon.replay size={20} /> Try sending the alert again</button>}
+
+        {p.phoneDialable
+          ? <a data-first className="pt-btn pt-btn--red pt-alert-btn" href={`tel:${phoneLine}`}><Icon.phone size={22} /> Call my care team</a>
+          : <p className="pt-alert-warn">{p.demo ? "Demo plan: this is a placeholder number, so no call can be placed." : "No care-team number is on this plan."}</p>}
+        {p.emergencyNumber && <a className="pt-btn pt-btn--red pt-alert-btn" href={`tel:${p.emergencyNumber}`}><Icon.phone size={22} /> Call emergency services ({p.emergencyNumber})</a>}
+
+        <p className="pt-alert-sub">If this is an emergency, call your local emergency number now. Sit down and stay where you are.</p>
+        {p.soundBlocked && <p className="pt-alert-sub">Sound is blocked by this browser. Tap anywhere once to allow alarms.</p>}
+
+        {p.confirmClose && <p className="pt-alert-warn" role="alert">Your care team has not been notified yet. Call them, send the alert again, or tap again to close anyway.</p>}
+        <button className="pt-btn pt-btn--line pt-alert-btn" onClick={p.onClose} data-first={p.phoneDialable ? undefined : ""}>{p.confirmClose ? "Close anyway" : "I’m okay"}</button>
+      </div>
+    </div>
+  );
+}
+
+===== STAFF CONSOLE =====
+
+
+===========================================================================
+FILE: web\app\staff\page.tsx
+===========================================================================
+"use client";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/staff/icons";
+import { useSearch } from "@/components/staff/Shell";
+import StatusTable from "@/components/staff/StatusTable";
+import { api } from "@/lib/api";
+import { fadeUp } from "@/lib/motion";
+import { timeAgo } from "@/lib/review";
+import type { RunMeta } from "@/lib/types";
+
+function alertFor(r: RunMeta): { tone: string; icon: keyof typeof Icon; title: string; text: string } {
+  const toCheck = r.counts ? r.counts.review + r.counts.conflict + r.counts.rejected : 0;
+  switch (r.status) {
+    case "needs_review": return { tone: "warn", icon: "alert", title: "Review needed", text: `${r.patient.name}: ${toCheck} field${toCheck === 1 ? "" : "s"} to check` };
+    case "approved": return { tone: "ok", icon: "check", title: "Plan approved", text: `${r.patient.name}: locked and ready to share` };
+    case "failed": return { tone: "bad", icon: "x", title: "Processing failed", text: `${r.patient.name}: ${r.error?.slice(0, 60) ?? "see the live theater"}` };
+    default: return { tone: "info", icon: "spark", title: "Processing", text: `${r.patient.name}: reading ${r.filename}` };
+  }
+}
+
+export default function Dashboard() {
+  const [runs, setRuns] = useState<RunMeta[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hello, setHello] = useState({ greet: "Hello", date: "" });
+  const q = useSearch().trim().toLowerCase();
+
+  useEffect(() => {
+    const now = new Date();
+    const h = now.getHours();
+    setHello({
+      greet: h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening",
+      date: now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+    });
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      try {
+        const r = await api.listRuns();
+        if (!alive) return;
+        setRuns(r);
+        setError(null);
+        const busy = r.some((x) => x.status === "queued" || x.status === "processing");
+        timer = setTimeout(load, busy ? 1500 : 6000);
+      } catch {
+        if (!alive) return;
+        setError("Cannot reach the API. Is it running on port 8000?");
+        timer = setTimeout(load, 4000);
+      }
+    };
+    void load();
+    return () => { alive = false; clearTimeout(timer); };
+  }, []);
+
+  const count = (f: (r: RunMeta) => boolean) => runs?.filter(f).length ?? "–";
+  const shown = useMemo(
+    () => (runs ?? []).filter((r) => !q || `${r.patient.name} ${r.filename}`.toLowerCase().includes(q)),
+    [runs, q],
+  );
+
+  return (
+    <motion.div className="rr-page" {...fadeUp}>
+      <div className="cc-hello">
+        <div>
+          <h1 className="rr-title">{hello.greet}, care team</h1>
+          <p className="rr-sub">Here is what is happening with your discharge plans today.</p>
+        </div>
+        <span className="cc-date"><Icon.calendar size={16} /> {hello.date}</span>
+      </div>
+
+      <div className="cc-kpis">
+        <div className="rr-card cc-kpi"><span className="cc-kpi-ic cc-kpi-ic--amber"><Icon.alert size={22} /></span><div><small>Awaiting review</small><b>{count((r) => r.status === "needs_review")}</b></div></div>
+        <div className="rr-card cc-kpi"><span className="cc-kpi-ic cc-kpi-ic--green"><Icon.shield size={22} /></span><div><small>Approved</small><b>{count((r) => r.status === "approved")}</b></div></div>
+        <div className="rr-card cc-kpi"><span className="cc-kpi-ic cc-kpi-ic--blue"><Icon.spark size={22} /></span><div><small>Processing</small><b>{count((r) => r.status === "queued" || r.status === "processing")}</b></div></div>
+        <div className="rr-card cc-kpi"><span className="cc-kpi-ic cc-kpi-ic--red"><Icon.file size={22} /></span><div><small>All plans</small><b>{runs?.length ?? "–"}</b></div></div>
+      </div>
+
+      {error && <p className="rr-error">{error}</p>}
+
+      <div className="cc-cols">
+        <section>
+          <div className="cc-panel-head">
+            <h2>Discharge plans</h2>
+            <Link href="/staff/upload" className="rr-btn rr-btn--primary rr-btn--sm"><Icon.upload size={15} /> New discharge</Link>
+          </div>
+          {runs === null && !error && (
+            <div className="rr-card">
+              {[0, 1, 2].map((i) => <div key={i} className="rr-skel" style={{ height: 44, marginBottom: 10 }} />)}
+            </div>
+          )}
+          {runs && runs.length === 0 && (
+            <div className="rr-card rr-empty">
+              <span className="rr-empty-icon"><Icon.file size={26} /></span>
+              <b>No discharge plans yet</b>
+              <small>Start with the sample document to see the whole flow.</small>
+              <Link href="/staff/upload" className="rr-btn rr-btn--primary">Upload a document</Link>
+            </div>
+          )}
+          {runs && runs.length > 0 && shown.length === 0 && <div className="rr-card rr-empty rr-empty--sm"><b>No plans match your search</b></div>}
+          {shown.length > 0 && <StatusTable runs={shown} />}
+        </section>
+
+        <aside className="cc-rail">
+          <div className="rr-card">
+            <div className="cc-panel-head"><h2>Quick actions</h2></div>
+            <div className="cc-quick">
+              <Link href="/staff/upload"><span><Icon.upload size={17} /></span>New discharge</Link>
+              <Link href="/staff/help"><span><Icon.bell size={17} /></span>Help requests</Link>
+            </div>
+          </div>
+          <div className="rr-card">
+            <div className="cc-panel-head"><h2>Alerts and notifications</h2></div>
+            {!runs || runs.length === 0 ? <small>Nothing to report yet.</small> : (
+              <ul className="cc-alerts">
+                {runs.slice(0, 5).map((r) => {
+                  const a = alertFor(r);
+                  const I = Icon[a.icon];
+                  return (
+                    <li key={r.run_id} className="cc-alert">
+                      <i className={`t-${a.tone}`}><I size={16} /></i>
+                      <div><b>{a.title}</b><small>{a.text}</small></div>
+                      <time>{timeAgo(r.created_at)}</time>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </aside>
+      </div>
+    </motion.div>
+  );
+}
+
+
+===========================================================================
+FILE: web\app\staff\layout.tsx
+===========================================================================
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import Shell from "@/components/staff/Shell";
+import "./staff.css";
+
+export const metadata: Metadata = { title: "RecoverRight · Care team" };
+
+export default function StaffLayout({ children }: { children: ReactNode }) {
+  return <Shell>{children}</Shell>;
+}
+
+
+===========================================================================
+FILE: web\app\staff\help\page.tsx
+===========================================================================
+export default function Page() {
+  return (
+    <main style={{ padding: 48, fontFamily: "system-ui", color: "#5d7480" }}>
+      <h1 style={{ color: "#0e2630" }}>Coming next</h1>
+      <p>This screen is built in a later step.</p>
+    </main>
+  );
+}
+
+
+===========================================================================
+FILE: web\app\staff\patients\[id]\page.tsx
+===========================================================================
+FILE NOT FOUND
+
+
+===========================================================================
+FILE: web\components\staff\Shell.tsx
+===========================================================================
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { MotionConfig } from "framer-motion";
+import { Suspense, createContext, useContext, useState, type ReactNode } from "react";
+import { Icon } from "./icons";
+
+/** The top-bar search text, shared with whichever page wants to filter by it. */
+const SearchCtx = createContext("");
+export const useSearch = () => useContext(SearchCtx);
+
+const NAV = [
+  { href: "/staff", label: "Dashboard", icon: Icon.grid, active: (p: string) => p === "/staff" || p.startsWith("/staff/runs") },
+  { href: "/staff/upload", label: "New discharge", icon: Icon.upload, active: (p: string) => p.startsWith("/staff/upload") },
+  { href: "/staff/help", label: "Help requests", icon: Icon.bell, active: (p: string) => p.startsWith("/staff/help") },
+];
+
+function Nav({ path }: { path: string }) {
+  return (
+    <nav className="rr-nav" aria-label="Main">
+      {NAV.map((n) => (
+        <Link key={n.href} href={n.href} className={`rr-nav-item${n.active(path) ? " is-active" : ""}`}>
+          <n.icon size={18} />
+          {n.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** usePathname needs a Suspense boundary in production builds on dynamic routes. */
+function ActiveNav() {
+  return <Nav path={usePathname() ?? ""} />;
+}
+
+export default function Shell({ children }: { children: ReactNode }) {
+  const [q, setQ] = useState("");
+  return (
+    <MotionConfig reducedMotion="user">
+      <div className="rr">
+        <aside className="rr-side">
+          <Link href="/staff" className="rr-brand">
+            <span className="rr-brand-mark"><Icon.heart size={19} /></span>
+            <span>
+              <b>RecoverRight</b>
+              <small>From discharge to recovery</small>
+            </span>
+          </Link>
+          <Suspense fallback={<Nav path="" />}>
+            <ActiveNav />
+          </Suspense>
+          <div className="rr-side-foot">
+            <p>Prototype with fictional data only. Nothing here is medical advice.</p>
+          </div>
+        </aside>
+        <main className="rr-main">
+          <header className="cc-top">
+            <label className="cc-search">
+              <Icon.search size={17} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search patients or documents" aria-label="Search patients or documents" />
+            </label>
+            <div className="cc-top-right">
+              <div className="cc-user">
+                <span className="cc-avatar">CT</span>
+                <div><b>Care team</b><small>Nurse coordinator</small></div>
+              </div>
+            </div>
+          </header>
+          <SearchCtx.Provider value={q}>{children}</SearchCtx.Provider>
+        </main>
+      </div>
+    </MotionConfig>
+  );
+}
+
+===== SANDBOX IMPLEMENTATION REFERENCES =====
+
+
+===========================================================================
+FILE: _update\verification\sandbox-harness\lib\api.ts
+===========================================================================
+export const API = (typeof window !== "undefined" && (window as any).__API__) || "http://localhost:8000";
+export const api = {
+  async listRuns() { return (await fetch(`${API}/runs`)).json(); },
+  async getRun(id: string) { const r = await fetch(`${API}/runs/${id}`); if (!r.ok) throw new Error("x"); return r.json(); },
+  async getReview(id: string) { const r = await fetch(`${API}/runs/${id}/review`); if (!r.ok) throw new Error("x"); return r.json(); },
+};
+
+
+===========================================================================
+FILE: _update\backend\help_endpoint_example.py
+===========================================================================
+"""
+REFERENCE ONLY, NOT TESTED. I could not see your API code and FastAPI was not available where this was written.
+It documents the contract the patient app's help alert expects, so the backend can implement it.
+
+The web app (web/lib/voice/help.ts) POSTs JSON to  {API}{NEXT_PUBLIC_HELP_PATH, default "/help"}
+and says "Your care team was alerted" ONLY if the response status is 2xx. Anything else is shown to the
+patient as "Help has NOT been sent".
+
+Adapt names and storage to your app. Anything that shows these to a nurse (e.g. your /staff/help page) is a
+separate piece of work: the staff console was deliberately not modified.
+"""
+from datetime import datetime, timezone
+from typing import Literal
+
+from fastapi import APIRouter
+from pydantic import BaseModel
+
+router = APIRouter()
+HELP_REQUESTS: list[dict] = []  # replace with your real storage
+
+
+class HelpPayload(BaseModel):
+    token: str                                   # the patient link token (run id)
+    patient_name: str = ""
+    heard: str                                   # what was said, or "I pressed the help button"
+    severity: Literal["critical", "concern"]
+    label: str = ""                              # e.g. "trouble breathing"
+    source: Literal["voice", "button", "test"] = "voice"   # staff can filter out "test"
+    demo: bool = False                           # True for the /p/demo plan
+    client_time: str = ""
+
+
+@router.post("/help", status_code=201)
+def create_help_request(p: HelpPayload):
+    item = {**p.model_dump(), "id": len(HELP_REQUESTS) + 1,
+            "received_at": datetime.now(timezone.utc).isoformat(), "status": "open"}
+    HELP_REQUESTS.append(item)
+    return {"id": item["id"]}
+
+
+@router.get("/help")
+def list_help_requests():
+    return list(reversed(HELP_REQUESTS))

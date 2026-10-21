@@ -1,0 +1,4 @@
+model,params_M,accuracy,macro_f1,top3
+EfficientNet-B0 (ours),4.0268,0.9919,0.9911,0.9993
+Simple CNN (from scratch),0.3932,0.8393,0.7711,0.9661
+ResNet50 (transfer),23.5388,0.8647,0.8248,0.9786

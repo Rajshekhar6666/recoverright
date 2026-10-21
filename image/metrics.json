@@ -1,0 +1,121 @@
+{
+  "lab_test": [
+    {
+      "model": "EfficientNet-B0 (ours)",
+      "params_M": 4.0268,
+      "accuracy": 0.9919,
+      "macro_f1": 0.9911,
+      "top3": 0.9993
+    },
+    {
+      "model": "Simple CNN (from scratch)",
+      "params_M": 0.3932,
+      "accuracy": 0.8393,
+      "macro_f1": 0.7711,
+      "top3": 0.9661
+    },
+    {
+      "model": "ResNet50 (transfer)",
+      "params_M": 23.5388,
+      "accuracy": 0.8647,
+      "macro_f1": 0.8248,
+      "top3": 0.9786
+    }
+  ],
+  "lab_vs_field": [
+    {
+      "model": "Lab-trained",
+      "lab_acc": 0.9919,
+      "field_acc": 0.402
+    },
+    {
+      "model": "+ field fine-tune",
+      "lab_acc": 0.9803,
+      "field_acc": 0.4902
+    }
+  ],
+  "ece_before": 0.1155236881892044,
+  "ece_after": 0.0022146567846009022,
+  "near_duplicate_pct": 57.74838928450322,
+  "risk_coverage_field_test": [
+    {
+      "threshold": 0.3,
+      "coverage": 0.843,
+      "accuracy_when_answering": 0.535
+    },
+    {
+      "threshold": 0.4,
+      "coverage": 0.676,
+      "accuracy_when_answering": 0.609
+    },
+    {
+      "threshold": 0.5,
+      "coverage": 0.5,
+      "accuracy_when_answering": 0.706
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.314,
+      "accuracy_when_answering": 0.75
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.196,
+      "accuracy_when_answering": 0.8
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.118,
+      "accuracy_when_answering": 0.667
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.039,
+      "accuracy_when_answering": 1.0
+    }
+  ],
+  "risk_coverage_field_val": [
+    {
+      "threshold": 0.3,
+      "coverage": 0.77,
+      "accuracy_when_answering": 0.545
+    },
+    {
+      "threshold": 0.4,
+      "coverage": 0.565,
+      "accuracy_when_answering": 0.602
+    },
+    {
+      "threshold": 0.5,
+      "coverage": 0.39,
+      "accuracy_when_answering": 0.615
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.26,
+      "accuracy_when_answering": 0.673
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.145,
+      "accuracy_when_answering": 0.724
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.095,
+      "accuracy_when_answering": 0.684
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.03,
+      "accuracy_when_answering": 1.0
+    }
+  ],
+  "threshold": 0.9,
+  "split_sizes": {
+    "train": 14741,
+    "test": 2949,
+    "val": 2948
+  },
+  "seed": 42
+}

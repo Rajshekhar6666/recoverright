@@ -1,0 +1,45 @@
+{
+  "id": "hr_3dd65540",
+  "client_id": "c_mvhnd5l6fsh2j1",
+  "run_id": "demo",
+  "patient": null,
+  "patient_name": "Priya Sharma",
+  "heard": "help",
+  "label": "Patient asked for help",
+  "severity": "critical",
+  "source": "voice",
+  "demo": true,
+  "status": "escalated",
+  "created_at": "2026-10-21T05:03:52.464391+00:00",
+  "client_time": "2026-10-21T05:03:52.459Z",
+  "sla_seconds": 120,
+  "acknowledged_at": "2026-10-21T05:05:25.761067+00:00",
+  "acknowledged_by": "Care team",
+  "escalated_at": "2026-10-21T05:05:25.761067+00:00",
+  "escalated_by": "Care team",
+  "resolved_at": null,
+  "resolved_by": null,
+  "resolution": null,
+  "resolution_label": null,
+  "calls": 0,
+  "timeline": [
+    {
+      "at": "2026-10-21T05:03:52.464391+00:00",
+      "actor": "patient",
+      "action": "created",
+      "note": "Heard: “help”"
+    },
+    {
+      "at": "2026-10-21T05:05:25.761067+00:00",
+      "actor": "Care team",
+      "action": "escalated",
+      "note": "Escalated to the on-call clinician"
+    },
+    {
+      "at": "2026-10-21T05:05:44.236826+00:00",
+      "actor": "Patient",
+      "action": "note",
+      "note": "Patient says they are okay now"
+    }
+  ]
+}

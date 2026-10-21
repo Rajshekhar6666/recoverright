@@ -64,7 +64,7 @@ export default function ProcessingView({ events }: { events: ApiEvent[] }) {
   return (
     <div className="rr-proc rr-card">
       <h2>Processing the document</h2>
-      <p className="rr-mute">Every step below is real. The same events drive the live theater.</p>
+      <p className="rr-mute">Every step below is real.</p>
       <div className="rr-bar"><motion.i animate={{ width: `${(doneCount / rows.length) * 100}%` }} transition={{ duration: dur.slow }} /></div>
       <ol className="rr-steps">
         {rows.map((r, i) => (

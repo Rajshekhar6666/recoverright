@@ -12,6 +12,14 @@ function svg(size: number | undefined, p: SVGProps<SVGSVGElement>, children: Rea
 }
 
 export const Icon = {
+  users: ({ size, ...p }: P) => svg(size, p, <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.2 2.7-5.5 6-5.5s6 2.3 6 5.5" /><circle cx="17" cy="9" r="2.4" /><path d="M17 14c2.5 0 4 1.7 4 4" /></>),
+  copy: ({ size, ...p }: P) => svg(size, p, <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>),
+  filter: ({ size, ...p }: P) => svg(size, p, <><path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" /></>),
+  refresh: ({ size, ...p }: P) => svg(size, p, <><path d="M20 11a8 8 0 0 0-14-4L4 9" /><path d="M4 4v5h5" /><path d="M4 13a8 8 0 0 0 14 4l2-2" /><path d="M20 20v-5h-5" /></>),
+  volume: ({ size, ...p }: P) => svg(size, p, <><path d="M4 10v4h4l5 4V6L8 10z" /><path d="M16.5 9a4 4 0 0 1 0 6" /><path d="M19 6.5a8 8 0 0 1 0 11" /></>),
+  volumeOff: ({ size, ...p }: P) => svg(size, p, <><path d="M4 10v4h4l5 4V6L8 10z" /><path d="m17 9 4 6" /><path d="m21 9-4 6" /></>),
+  siren: ({ size, ...p }: P) => svg(size, p, <><path d="M7 18v-6a5 5 0 0 1 10 0v6" /><path d="M5 18h14v3H5z" /><path d="M12 3v2" /><path d="m4.5 6.5 1.4 1.4" /><path d="m19.5 6.5-1.4 1.4" /></>),
+  chevron: ({ size, ...p }: P) => svg(size, p, <path d="m9 6 6 6-6 6" />),
   grid: ({ size, ...p }: P) => svg(size, p, <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
   upload: ({ size, ...p }: P) => svg(size, p, <><path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>),
   bell: ({ size, ...p }: P) => svg(size, p, <><path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></>),

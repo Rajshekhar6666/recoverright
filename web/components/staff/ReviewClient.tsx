@@ -160,7 +160,6 @@ export default function ReviewClient({ runId }: { runId: string }) {
               <b>Plan approved and locked</b>
               <small>Approved by {meta?.approved_by ?? "staff"}. Every decision is recorded in the audit log.</small>
             </div>
-            <Link className="rr-btn rr-btn--ghost rr-btn--sm" href={`/live/${runId}`}>Open live theater <Icon.arrow size={14} /></Link>
           </motion.div>
         )}
       </AnimatePresence>

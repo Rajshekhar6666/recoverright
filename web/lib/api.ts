@@ -1,4 +1,4 @@
-import type { Action, Attrs, DecisionResult, ReviewData, RunMeta } from "./types";
+import type { Action, Attrs, DecisionResult, HelpActionName, HelpList, HelpRequest, HelpSummary, PatientDetail, PatientRow, ReviewData, RunMeta } from "./types";
 
 export const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -47,4 +47,20 @@ export const api = {
       body: JSON.stringify({ by }),
     }).then((r) => parse<unknown>(r)),
   sourceUrl: (id: string) => `${API}/runs/${id}/source`,
+
+  // ---- help requests (patient -> care team)
+  listHelp: (status = "all", includeTest = true) =>
+    fetch(`${API}/help?status=${encodeURIComponent(status)}&include_test=${includeTest}&limit=300`, { cache: "no-store" }).then((r) => parse<HelpList>(r)),
+  helpSummary: () => fetch(`${API}/help/summary`, { cache: "no-store" }).then((r) => parse<HelpSummary>(r)),
+  getHelp: (id: string) => fetch(`${API}/help/${id}`, { cache: "no-store" }).then((r) => parse<HelpRequest>(r)),
+  helpAction: (id: string, action: HelpActionName, by: string, extra: { note?: string; resolution?: string; target?: "patient" | "guardian" } = {}) =>
+    fetch(`${API}/help/${id}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, by, ...extra }),
+    }).then((r) => parse<HelpRequest>(r)),
+
+  // ---- patient directory
+  listPatients: () => fetch(`${API}/patients`, { cache: "no-store" }).then((r) => parse<{ items: PatientRow[] }>(r)),
+  getPatient: (id: string) => fetch(`${API}/patients/${encodeURIComponent(id)}`, { cache: "no-store" }).then((r) => parse<PatientDetail>(r)),
 };

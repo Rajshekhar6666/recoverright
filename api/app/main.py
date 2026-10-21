@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import events, runs
+from app.routers import events, help, patients, runs
 
 app = FastAPI(title="RecoverRight API")
 
@@ -14,6 +14,8 @@ app.add_middleware(
 
 app.include_router(events.router)
 app.include_router(runs.router)
+app.include_router(help.router)
+app.include_router(patients.router)
 
 
 @app.get("/health")
