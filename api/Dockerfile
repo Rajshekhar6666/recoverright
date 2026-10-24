@@ -25,7 +25,7 @@ COPY scripts/ scripts/
 
 # Create non-root system user for security compliance
 RUN useradd -u 1001 -m -s /bin/bash appuser && \
-    mkdir -p /app/data/runs && \
+    mkdir -p /app/data/runs /app/data/help /app/data/recordings /app/data/cache && \
     chown -R appuser:appuser /app
 
 USER appuser

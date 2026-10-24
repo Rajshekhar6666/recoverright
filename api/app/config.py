@@ -1,8 +1,7 @@
 import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]   # E:\recoverright
-ENV_FILE = ROOT / ".env"
+ENV_FILE = next((p / ".env" for p in Path(__file__).resolve().parents if (p / ".env").exists()), Path("/app/.env"))
 
 
 def _read_env(path: Path) -> dict:

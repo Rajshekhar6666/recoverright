@@ -4,9 +4,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator
 
+import os
+
 from app.schemas.events import Event, Stage
 
-RECORDINGS = Path(__file__).resolve().parents[3] / "data" / "recordings"
+def _recordings_dir() -> Path:
+    rr = os.getenv("RR_RUNS_DIR")
+    if rr:
+        return Path(rr).parent / "recordings"
+    candidate = Path(__file__).resolve().parents[3]
+    if candidate.exists() and candidate != Path("/"):
+        return candidate / "data" / "recordings"
+    return Path("/app/data/recordings")
+
+RECORDINGS = _recordings_dir()
 
 
 class EventBus:

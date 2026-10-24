@@ -12,7 +12,7 @@ from app.schemas.events import Stage
 from app.schemas.plan import ExtractedPlan
 from app.schemas.review import ReviewField
 from app.services.event_bus import bus
-from app.services.storage import ROOT, store
+from app.services.storage import store
 
 try:
     from app import config
@@ -22,7 +22,16 @@ except Exception:  # sandbox / tests
 
 from pathlib import Path  # noqa: E402
 
-CACHE = Path(os.getenv("RR_CACHE_DIR", ROOT / "data" / "cache"))
+def _cache_dir() -> Path:
+    rr = os.getenv("RR_RUNS_DIR")
+    if rr:
+        return Path(rr).parent / "cache"
+    candidate = Path(__file__).resolve().parents[3]
+    if candidate.exists() and candidate != Path("/"):
+        return candidate / "data" / "cache"
+    return Path("/app/data/cache")
+
+CACHE = Path(os.getenv("RR_CACHE_DIR", str(_cache_dir())))
 
 
 def _cache_key(path) -> str:
