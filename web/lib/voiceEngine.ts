@@ -798,9 +798,14 @@ export function extractPatientNameFromUtterance(raw: string): string | null {
   const mujheMatch = s.match(/mujhe\s+([a-zA-Z\u0900-\u097F]+)\s+(?:ki|ka|ke)/i);
   if (mujheMatch && !isStaffStopWord(mujheMatch[1])) return mujheMatch[1].trim();
 
-  // Pattern F: "Open Priya" / "Go to Rahul"
+  // Pattern F: "Open Priya" / "Go to Rahul" / "Open Iyer Dashboard"
+  // Strip trailing nav keywords so "Open Iyer Dashboard" → "Iyer" not "Iyer Dashboard"
+  const NAV_SUFFIX = /\s+(?:dashboard|report|profile|details|care\s*plan|tasks|progress|documents?|analytics|overview|summary)$/i;
   const openNameMatch = s.match(/\b(?:open|go\s+to|show\s+me|show)\s+([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i);
-  if (openNameMatch && !isStaffStopWord(openNameMatch[1])) return openNameMatch[1].trim();
+  if (openNameMatch) {
+    const extracted = openNameMatch[1].replace(NAV_SUFFIX, "").trim();
+    if (extracted && !isStaffStopWord(extracted)) return extracted;
+  }
 
   return null;
 }
