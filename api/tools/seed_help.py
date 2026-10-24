@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from app.services.help_store import HelpStore, ROOT, help_store
+from app.services.help_store import HelpStore, _help_dir_default, help_store
 
 SAMPLES = [
     ("critical", "I can't breathe", "trouble breathing"),
@@ -59,7 +59,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if "--clear" in argv:
         print(f"Removed {clear(help_store)} sample request(s).")
         return 0
-    runs_dir = ROOT / "data" / "runs"
+    runs_dir = _help_dir_default().parent / "runs"
     made = seed(runs_dir, help_store)
     if not made:
         print(f"No patients found in {runs_dir}. Upload a discharge document first, then run this again.")

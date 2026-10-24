@@ -20,7 +20,24 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
-ROOT = Path(__file__).resolve().parents[3]  # E:\recoverright (same convention as storage.py)
+
+def _help_dir_default() -> Path:
+    """Derive the help-files directory from RR_RUNS_DIR when available.
+    Falls back to a relative path for local development.
+    Avoids the parents[3] trick that resolves to '/' inside Docker.
+    """
+    rr = os.getenv("RR_RUNS_DIR")
+    if rr:
+        # RR_RUNS_DIR = /app/data/runs  →  help dir = /app/data/help
+        return Path(rr).parent / "help"
+    # Local dev: __file__ = .../api/app/services/help_store.py
+    # parents: [0]=services [1]=app [2]=api [3]=repo-root
+    repo = Path(__file__).resolve().parents[3]
+    if not repo.exists() or repo == Path("/"):
+        repo = Path("/app")
+    return repo / "data" / "help"
+
+
 
 SEVERITIES = ("critical", "concern")
 SOURCES = ("voice", "button", "test")
@@ -87,7 +104,7 @@ class HelpStore:
 
     # ------------------------------------------------------------------ storage
     def dir(self) -> Path:
-        d = self._base or Path(os.getenv("RR_HELP_DIR", ROOT / "data" / "help"))
+        d = self._base or Path(os.getenv("RR_HELP_DIR", str(_help_dir_default())))
         d.mkdir(parents=True, exist_ok=True)
         return d
 

@@ -15,8 +15,24 @@ from pydantic import BaseModel
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def _safe_data_root() -> Path:
+    """Return the repo/data root safely in both local dev and Docker.
+    In Docker: __file__ = /app/app/services/storage.py → parents[3] = '/' (wrong).
+    RR_RUNS_DIR is always set in Docker, so that path takes priority.
+    """
+    rr = os.getenv("RR_RUNS_DIR")
+    if rr:
+        return Path(rr).parent   # .../data/runs → .../data
+    if ROOT.exists() and ROOT != Path("/"):
+        return ROOT / "data"
+    return Path("/app/data")
+
+
 def runs_dir() -> Path:
-    return Path(os.getenv("RR_RUNS_DIR", ROOT / "data" / "runs"))
+    rr = os.getenv("RR_RUNS_DIR")
+    if rr:
+        return Path(rr)
+    return _safe_data_root() / "runs"
 
 
 def token_index_path() -> Path:
