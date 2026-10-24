@@ -2,12 +2,15 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { needsDecision } from "@/lib/review";
-import type { Action, Attrs, Block, ReviewData } from "@/lib/types";
+import type { Action, Attrs, Block, PatientDetail, ReviewData } from "@/lib/types";
 import FieldCard from "./FieldCard";
 import { Icon } from "./icons";
+import PatientOverviewPanel from "./PatientOverviewPanel";
 
 type Tab = "todo" | "done" | "all";
+type LeftTab = "overview" | "source";
 const RANK: Record<string, number> = { done: -1, agreed: 0, review: 1, conflict: 2, rejected: 3 };
 
 type Group = { kind: "text"; block: Block } | { kind: "table"; id: string; rows: Block[] };
@@ -40,16 +43,23 @@ export default function ReviewSplit(props: {
   data: ReviewData;
   locked: boolean;
   onDecide: (fieldId: string, action: Action, attrs?: Attrs) => Promise<void>;
+  detail?: PatientDetail | null;
+  onRefreshDetail?: () => Promise<void>;
+  onOpenAddDoc?: () => void;
 }) {
-  const { data, locked, onDecide } = props;
+  const { data, locked, onDecide, detail, onRefreshDetail, onOpenAddDoc } = props;
+  const { t, lang } = useLanguage();
   const { blocks, fields } = data;
   const todo = useMemo(() => fields.filter((f) => !f.decision && needsDecision(f.field)), [fields]);
   const done = useMemo(() => fields.filter((f) => f.decision), [fields]);
   const [tab, setTab] = useState<Tab>(locked ? "all" : todo.length ? "todo" : "all");
+  const [leftTab, setLeftTab] = useState<LeftTab>("overview");
   const [selected, setSelected] = useState<string | null>(todo[0]?.field.field_id ?? fields[0]?.field.field_id ?? null);
+
   useEffect(() => {
     if (locked) setTab("all"); // once approved, show the whole plan
   }, [locked]);
+
   const blockRefs = useRef<Record<string, HTMLElement | null>>({});
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -82,10 +92,12 @@ export default function ReviewSplit(props: {
 
   // bring the selected field's source into view, and its card into view
   useEffect(() => {
-    const first = [...active][0];
-    if (first) blockRefs.current[first]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (leftTab === "source") {
+      const first = [...active][0];
+      if (first) blockRefs.current[first]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
     if (selected) listRef.current?.querySelector(`[data-field="${CSS.escape(selected)}"]`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [selected, active]);
+  }, [selected, active, leftTab]);
 
   const decide = useCallback(
     async (fieldId: string, action: Action, attrs?: Attrs) => {
@@ -100,8 +112,8 @@ export default function ReviewSplit(props: {
   // keyboard: j/k move, c confirms the selected field
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
       const i = visible.findIndex((v) => v.field.field_id === selected);
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
@@ -130,53 +142,103 @@ export default function ReviewSplit(props: {
     const info = blockInfo.get(b.block_id);
     if (info) {
       setSelected(info.fieldId);
-      setTab((t) => (t === "todo" && fields.find((f) => f.field.field_id === info.fieldId)?.decision ? "all" : t));
+      setTab((tState) => (tState === "todo" && fields.find((f) => f.field.field_id === info.fieldId)?.decision ? "all" : tState));
     }
   };
   const quote = selectedItem?.field.quote ?? null;
 
   return (
     <div className="rr-split">
-      <section className="rr-pane rr-src" aria-label="Source document">
-        <header className="rr-pane-head">
-          <span><Icon.file size={16} /> Source document</span>
+      {/* LEFT PANEL: Patient Overview (default) with toggle to view Source Document */}
+      <section className="rr-pane rr-pane--left" aria-label="Patient Overview and Document">
+        <header className="rr-pane-head pt-pane-head">
+          <div className="pt-pane-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftTab === "overview"}
+              className={`pt-pane-tab ${leftTab === "overview" ? "is-active" : ""}`}
+              onClick={() => setLeftTab("overview")}
+            >
+              <Icon.user size={15} /> {t.patientOverview}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftTab === "source"}
+              className={`pt-pane-tab ${leftTab === "source" ? "is-active" : ""}`}
+              onClick={() => setLeftTab("source")}
+            >
+              <Icon.file size={15} /> {t.sourceDocument}
+            </button>
+          </div>
           <a className="rr-link" href={`${API}/runs/${data.run.run_id}/source`} target="_blank" rel="noreferrer">
-            Open original <Icon.external size={13} />
+            {t.openOriginal} <Icon.external size={13} />
           </a>
         </header>
-        <div className="rr-pane-body">
-          {groups.map((g) => {
-            if (g.kind === "text") {
-              const b = g.block;
-              const props = { ref: reg(b.block_id), className: cls(b), onClick: pick(b) };
-              if (b.type === "heading") return <h3 key={b.block_id} {...props}>{b.text}</h3>;
-              return (
-                <p key={b.block_id} {...props} data-li={b.type === "list_item" ? "1" : undefined}>
-                  <Marked text={b.text} quote={active.has(b.block_id) ? quote : null} />
-                </p>
-              );
-            }
-            return (
-              <div key={g.id} className="rr-src-tablewrap">
-                <table className="rr-src-table">
-                  <tbody>
-                    {g.rows.map((r, ri) => (
-                      <tr key={r.block_id} ref={reg(r.block_id)} className={`${cls(r)}${ri === 0 ? " is-head" : ""}`} onClick={pick(r)}>
-                        {(r.cells ?? [r.text]).map((c, ci) => (ri === 0 ? <th key={ci}>{c}</th> : <td key={ci}>{c}</td>))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+        <div className="rr-pane-body pt-pane-body">
+          {leftTab === "overview" ? (
+            <PatientOverviewPanel
+              runId={data.run.run_id}
+              meta={data.run}
+              data={data}
+              detail={detail ?? null}
+              onRefreshDetail={onRefreshDetail ?? (async () => {})}
+              onViewSourceDoc={() => setLeftTab("source")}
+              onOpenAddDoc={onOpenAddDoc ?? (() => {})}
+            />
+          ) : (
+            <div className="rr-src">
+              <div className="pt-doc-info-bar">
+                <span><Icon.file size={14} /> {lang === "hi" ? "उद्धरण चिह्नों के साथ निकाले गए चिकित्सीय खंड" : "Showing extracted clinical blocks with quote highlights"}</span>
+                <button
+                  type="button"
+                  className="rr-btn rr-btn--ghost rr-btn--sm"
+                  onClick={() => setLeftTab("overview")}
+                >
+                  ← {t.patientOverview}
+                </button>
               </div>
-            );
-          })}
+              {groups.map((g) => {
+                if (g.kind === "text") {
+                  const b = g.block;
+                  const props = { ref: reg(b.block_id), className: cls(b), onClick: pick(b) };
+                  if (b.type === "heading") return <h3 key={b.block_id} {...props}>{b.text}</h3>;
+                  return (
+                    <p key={b.block_id} {...props} data-li={b.type === "list_item" ? "1" : undefined}>
+                      <Marked text={b.text} quote={active.has(b.block_id) ? quote : null} />
+                    </p>
+                  );
+                }
+                return (
+                  <div key={g.id} className="rr-src-tablewrap">
+                    <table className="rr-src-table">
+                      <tbody>
+                        {g.rows.map((r, ri) => (
+                          <tr key={r.block_id} ref={reg(r.block_id)} className={`${cls(r)}${ri === 0 ? " is-head" : ""}`} onClick={pick(r)}>
+                            {(r.cells ?? [r.text]).map((c, ci) => (ri === 0 ? <th key={ci}>{c}</th> : <td key={ci}>{c}</td>))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
+      {/* RIGHT PANEL: Document Review and Actions */}
       <section className="rr-pane rr-fields" aria-label="Extracted fields">
         <header className="rr-pane-head">
           <div className="rr-tabs" role="tablist">
-            {([["todo", `To do · ${todo.length}`], ["done", `Done · ${done.length}`], ["all", `All · ${fields.length}`]] as [Tab, string][]).map(([k, label]) => (
+            {([
+              ["todo", t.todoTab(todo.length)],
+              ["done", t.doneTab(done.length)],
+              ["all", t.allTab(fields.length)],
+            ] as [Tab, string][]).map(([k, label]) => (
               <button key={k} role="tab" aria-selected={tab === k} className={`rr-tab${tab === k ? " is-on" : ""}`} onClick={() => setTab(k)}>
                 {label}
                 {tab === k && <motion.i layoutId="tab-underline" className="rr-tab-line" />}
@@ -200,8 +262,8 @@ export default function ReviewSplit(props: {
           {visible.length === 0 && (
             <div className="rr-empty rr-empty--sm">
               <span className="rr-empty-icon"><Icon.check size={22} /></span>
-              <b>{tab === "todo" ? "Everything has a decision" : "Nothing here"}</b>
-              <small>{tab === "todo" ? "Review the pre-accepted items under All, then approve." : "Switch tabs to see other fields."}</small>
+              <b>{tab === "todo" ? t.allDecidedTitle : (lang === "hi" ? "यहाँ कुछ नहीं है" : "Nothing here")}</b>
+              <small>{tab === "todo" ? t.allDecidedSub : (lang === "hi" ? "अन्य फ़ील्ड देखने के लिए टैब बदलें।" : "Switch tabs to see other fields.")}</small>
             </div>
           )}
         </div>

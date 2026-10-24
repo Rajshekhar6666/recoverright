@@ -27,8 +27,8 @@ export default function QueueTable({ runs, help }: { runs: RunMeta[]; help: Reco
               <tr key={r.run_id} className="rr-row" tabIndex={0} onClick={() => open(r.run_id)} onKeyDown={(e) => e.key === "Enter" && open(r.run_id)}>
                 <td>
                   <span className="rr-pt">
-                    <span className="cc-avatar cc-avatar--sm">{initials(r.patient.name)}</span>
-                    <span><b>{r.patient.name}</b><small>{r.patient.language.toUpperCase()} · {r.filename}</small></span>
+                    <span className="cc-avatar cc-avatar--sm">{initials(r.patient?.name || "P")}</span>
+                    <span><b>{r.patient?.name || "Patient"}</b><small>{(r.patient?.language || "en").toUpperCase()} · {r.filename}</small></span>
                   </span>
                 </td>
                 <td><RunPill status={r.status} /></td>
@@ -44,8 +44,8 @@ export default function QueueTable({ runs, help }: { runs: RunMeta[]; help: Reco
                 <td className="rr-mute">{timeAgo(r.created_at)}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   <span className="hx-rowtools">
-                    <Link href={`/staff/patients/${r.run_id}`} title="Patient record" aria-label={`Patient record for ${r.patient.name}`}><Icon.user size={16} /></Link>
-                    <Link href={`/live/${r.run_id}`} target="_blank" title="Watch in the live theater" aria-label={`Live theater for ${r.patient.name}`}><Icon.pulse size={16} /></Link>
+                    <Link href={`/staff/patients/${r.run_id}`} title="Patient record" aria-label={`Patient record for ${r.patient?.name || "Patient"}`}><Icon.user size={16} /></Link>
+                    <Link href={`/live/${r.run_id}`} target="_blank" title="Watch in the live theater" aria-label={`Live theater for ${r.patient?.name || "Patient"}`}><Icon.pulse size={16} /></Link>
                   </span>
                 </td>
               </tr>

@@ -1,8 +1,15 @@
-export default function Page() {
+import { Suspense } from "react";
+import ReviewClient from "@/components/staff/ReviewClient";
+
+async function PatientWorkspace({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ReviewClient runId={id} />;
+}
+
+export default function PatientWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <main style={{ padding: 48, fontFamily: "system-ui", color: "#5d7480" }}>
-      <h1 style={{ color: "#0e2630" }}>Coming next</h1>
-      <p>This screen is built in a later step.</p>
-    </main>
+    <Suspense fallback={<div className="rr-page"><div className="rr-skel" style={{ height: 220 }} /></div>}>
+      <PatientWorkspace params={params} />
+    </Suspense>
   );
 }

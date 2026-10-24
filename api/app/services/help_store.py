@@ -27,7 +27,7 @@ SOURCES = ("voice", "button", "test")
 STATUSES = ("open", "acknowledged", "escalated", "resolved")
 ACTIVE = ("open", "acknowledged", "escalated")
 ACTIONS = ("acknowledge", "call", "escalate", "resolve", "note")
-CALL_TARGETS = ("patient", "guardian")
+CALL_TARGETS = ("patient", "guardian", "caregiver")
 RESOLUTIONS = {
     "helped": "Helped over the phone",
     "visit": "Visit or review arranged",

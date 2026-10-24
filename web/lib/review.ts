@@ -49,10 +49,13 @@ export const LANGS: [string, string][] = [
   ["zh", "中文 (Chinese)"], ["ar", "العربية (Arabic)"], ["pt", "Português (Portuguese)"],
 ];
 
-export function timeAgo(iso: string): string {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+export function timeAgo(iso?: string | null): string {
+  if (!iso) return "–";
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return "–";
+  const s = Math.max(0, (Date.now() - t) / 1000);
   if (s < 45) return "just now";
   if (s < 3600) return `${Math.round(s / 60)} min ago`;
   if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(t).toLocaleDateString();
 }

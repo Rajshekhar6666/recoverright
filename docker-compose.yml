@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: recoverright-api
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - MODEL_A=${MODEL_A:-openai/gpt-oss-120b}
+      - MODEL_B=${MODEL_B:-qwen/qwen3.8-27b}
+      - RR_RUNS_DIR=/app/data/runs
+      - PORT=${PORT:-8000}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - recoverright-net
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: recoverright-web
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - recoverright-net
+
+networks:
+  recoverright-net:
+    driver: bridge

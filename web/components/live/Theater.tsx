@@ -261,7 +261,7 @@ export default function Theater({ runId }: { runId: string }) {
         <div className="lt-ctl">
           {!demo && runs.length > 1 && !present && (
             <select aria-label="Choose a run" value={runId} onChange={(e) => { setReplay(null); router.push(`/live/${e.target.value}`); }}>
-              {runs.slice(0, 12).map((r) => <option key={r.run_id} value={r.run_id}>{short(r.filename, 24)} · {timeAgo(r.created_at)}</option>)}
+              {runs.slice(0, 12).map((r) => <option key={r.run_id} value={r.run_id}>{short(r.filename || "document", 24)} · {timeAgo(r.created_at)}</option>)}
             </select>
           )}
           {!replay

@@ -20,6 +20,7 @@ export const Icon = {
   volumeOff: ({ size, ...p }: P) => svg(size, p, <><path d="M4 10v4h4l5 4V6L8 10z" /><path d="m17 9 4 6" /><path d="m21 9-4 6" /></>),
   siren: ({ size, ...p }: P) => svg(size, p, <><path d="M7 18v-6a5 5 0 0 1 10 0v6" /><path d="M5 18h14v3H5z" /><path d="M12 3v2" /><path d="m4.5 6.5 1.4 1.4" /><path d="m19.5 6.5-1.4 1.4" /></>),
   chevron: ({ size, ...p }: P) => svg(size, p, <path d="m9 6 6 6-6 6" />),
+  chevronDown: ({ size, ...p }: P) => svg(size, p, <path d="m6 9 6 6 6-6" />),
   grid: ({ size, ...p }: P) => svg(size, p, <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
   upload: ({ size, ...p }: P) => svg(size, p, <><path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></>),
   bell: ({ size, ...p }: P) => svg(size, p, <><path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7" /><path d="M10 20a2 2 0 0 0 4 0" /></>),

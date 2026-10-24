@@ -6,7 +6,7 @@ import { timeAgo } from "@/lib/review";
 import type { RunMeta } from "@/lib/types";
 import RunPill from "./RunPill";
 
-const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+const initials = (n?: string | null) => (n ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
 export default function StatusTable({ runs }: { runs: RunMeta[] }) {
   const router = useRouter();
@@ -37,8 +37,8 @@ export default function StatusTable({ runs }: { runs: RunMeta[] }) {
             >
               <td>
                 <span className="rr-pt">
-                  <span className="cc-avatar cc-avatar--sm">{initials(r.patient.name)}</span>
-                  <span><b>{r.patient.name}</b><small>{r.patient.language.toUpperCase()}</small></span>
+                  <span className="cc-avatar cc-avatar--sm">{initials(r.patient?.name || "P")}</span>
+                  <span><b>{r.patient?.name || "Patient"}</b><small>{(r.patient?.language || "en").toUpperCase()}</small></span>
                 </span>
               </td>
               <td className="rr-mute">{r.filename}</td>

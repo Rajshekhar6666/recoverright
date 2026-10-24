@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SeverityBadge, StatusBadge } from "@/components/staff/help/HelpBits";
 import { Icon } from "@/components/staff/icons";
 import RunPill from "@/components/staff/RunPill";
+import StaffVoiceBar from "@/components/staff/StaffVoiceBar";
 import { API, ApiError, api } from "@/lib/api";
 import { useHelp } from "@/lib/staffHelp";
 import { age, dayTime, dialable, initials, ms, telHref } from "@/lib/time";
@@ -41,10 +42,15 @@ export default function PatientView({ id }: { id: string }) {
     return () => { alive = false; clearTimeout(timer); };
   }, [id]);
 
+  const token = (d?.run as any)?.patient_token || (d?.summary as any)?.patient_token || id;
+
   const copy = async () => {
-    const url = `${window.location.origin}/p/${id}`;
-    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2500); }
-    catch { window.prompt("Copy this patient link:", url); }
+    const slug = (d?.summary as any)?.patient_slug;
+    const patientUrl = slug
+      ? `${window.location.origin}/p/demo/${slug}`
+      : `${window.location.origin}/p/${token}`;
+    try { await navigator.clipboard.writeText(patientUrl); setCopied(true); setTimeout(() => setCopied(false), 2500); }
+    catch { window.prompt("Copy this patient link:", patientUrl); }
   };
 
   if (err?.status === 404) return (
@@ -57,17 +63,20 @@ export default function PatientView({ id }: { id: string }) {
   const s = d.summary;
   return (
     <div className="rr-page hx-patient">
+      <div style={{ marginBottom: 16 }}>
+        <StaffVoiceBar activePatient={{ id, name: s.name }} />
+      </div>
       <p className="hx-crumb"><Link href="/staff/patients">Patients</Link> <Icon.chevron size={12} /> {s.name}</p>
       <header className="rr-card hx-phead">
         <span className="cc-avatar hx-phead-av">{initials(s.name)}</span>
         <div className="hx-phead-main">
           <h1 className="rr-title">{s.name}</h1>
-          <div className="hx-phead-meta"><RunPill status={s.status} /><span className="hx-tag">{s.language.toUpperCase()}</span><span className="hx-tag">{s.filename}</span><small>Added {dayTime(s.created_at)}</small></div>
+          <div className="hx-phead-meta"><RunPill status={s.status} /><span className="hx-tag">{(s.language || "en").toUpperCase()}</span><span className="hx-tag">{s.filename}</span><small>Added {dayTime(s.created_at)}</small></div>
         </div>
         <div className="hx-phead-actions">
           <Link href={`/staff/runs/${id}/review`} className="rr-btn rr-btn--primary rr-btn--sm"><Icon.file size={15} /> {s.status === "needs_review" ? "Review plan" : "Open plan"}</Link>
           <Link href={`/live/${id}`} target="_blank" className="rr-btn rr-btn--ghost rr-btn--sm"><Icon.pulse size={15} /> Live theater</Link>
-          <Link href={`/p/${id}`} target="_blank" className="rr-btn rr-btn--ghost rr-btn--sm"><Icon.phone size={15} /> Patient app</Link>
+          <Link href={(d?.summary as any)?.patient_slug ? `/p/demo/${(d?.summary as any)?.patient_slug}` : `/p/${token}`} target="_blank" className="rr-btn rr-btn--ghost rr-btn--sm"><Icon.phone size={15} /> Patient app</Link>
           <button className="rr-btn rr-btn--ghost rr-btn--sm" onClick={() => void copy()}><Icon.copy size={15} /> {copied ? "Link copied" : "Copy patient link"}</button>
         </div>
       </header>
@@ -113,6 +122,56 @@ export default function PatientView({ id }: { id: string }) {
             <Contact label="Patient" name={s.name} phone={s.phone} />
             <Contact label="Guardian" name={s.guardian_name} phone={s.guardian_phone} />
           </section>
+
+          {((d as any).tasks?.length > 0 || (d as any).doses?.length > 0) && (
+            <section className="rr-card">
+              <div className="cc-panel-head">
+                <h2>Recovery Tasks</h2>
+                <small>
+                  {(d as any).tasks?.filter((t: any) => t.status === "completed").length ?? 0} / {(d as any).tasks?.length ?? 0} completed
+                </small>
+              </div>
+              <ul className="hx-hlist" style={{ marginTop: 8 }}>
+                {(d as any).tasks?.slice(0, 5).map((t: any) => (
+                  <li key={t.task_id} style={{ padding: "6px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <b style={{ fontSize: "0.88rem" }}>{t.title}</b>
+                      <span className={`rr-chip rr-chip--${t.status === "completed" ? "ok" : "warn"}`} style={{ fontSize: "0.75rem" }}>
+                        {t.status}
+                      </span>
+                    </div>
+                    {t.scheduled_time && <small style={{ color: "var(--muted, #666)" }}>{t.scheduled_time}</small>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {(d as any).reminders && (d as any).reminders.length > 0 && (
+            <section className="rr-card">
+              <div className="cc-panel-head">
+                <h2>Medication Reminders</h2>
+                <small>
+                  {(d as any).reminders.filter((r: any) => r.status === "delivered" || r.status === "acknowledged").length} / {(d as any).reminders.length} delivered
+                </small>
+              </div>
+              <ul className="hx-hlist" style={{ marginTop: 8 }}>
+                {(d as any).reminders.slice(0, 5).map((r: any) => (
+                  <li key={r.job_id} style={{ padding: "6px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <b style={{ fontSize: "0.88rem" }}>{r.medication_name} ({r.dose || "scheduled"})</b>
+                      <span className={`rr-chip rr-chip--${r.status === "acknowledged" ? "ok" : r.status === "failed" ? "bad" : "warn"}`} style={{ fontSize: "0.75rem" }}>
+                        {r.status}
+                      </span>
+                    </div>
+                    <small style={{ color: "var(--muted, #666)" }}>
+                      {r.scheduled_time} · Channel: {r.channel} {r.attempts > 1 ? `(${r.attempts} attempts)` : ""}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="rr-card">
             <div className="cc-panel-head"><h2>Help requests</h2><small>{d.help.length} total</small></div>

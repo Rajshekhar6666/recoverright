@@ -53,7 +53,7 @@ export function sla(h: HelpRequest, nowMs: number): Sla {
   };
 }
 
-export const initials = (n: string): string => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+export const initials = (n?: string | null): string => (n ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
 /** A number is callable if it has enough digits and is not a placeholder such as +91 00000 00000. */
 export function dialable(phone?: string | null): boolean {

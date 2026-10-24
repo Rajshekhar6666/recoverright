@@ -19,6 +19,10 @@ class Stage(str, Enum):
     DELIVER = "deliver"
     PATIENT = "patient"
     DASHBOARD = "dashboard"
+    REMINDER = "reminder"
+    CAREGIVER = "caregiver"
+    HELP = "help"
+    VOICE = "voice"
 
 
 class Event(BaseModel):

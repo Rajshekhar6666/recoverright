@@ -1,5 +1,5 @@
 import { currentAttrs } from "./review";
-import type { ReviewData } from "./types";
+import type { CaregiverContact, PatientPlanResponse, RecoveryTask, ReviewData } from "./types";
 
 export interface PlanMed { id: string; name: string; dose: string | null; frequency: string | null; duration: string | null; times: string[] }
 export interface PlanFollowUp { id: string; what: string; when: string | null; where: string | null }
@@ -7,10 +7,17 @@ export type InstructionKey = "wound_care" | "activity" | "diet" | "warning_signs
 export interface PlanView {
   patientName: string;
   phone: string;
+  run_id?: string;
+  runId?: string;
+  version?: number;
+  approvedAt?: string;
+  planDurationDays?: number;
   meds: PlanMed[];
   followUps: PlanFollowUp[];
   instructions: Record<InstructionKey, string[]>;
   contacts: { label: string; value: string }[];
+  caregivers?: CaregiverContact[];
+  serverTasks?: RecoveryTask[];
   demo: boolean;
 }
 
@@ -31,7 +38,7 @@ export function timesFor(freq: string | null): string[] {
   if (/(four|4)\s*times|qid/.test(f)) return [8, 12, 16, 20].map(fmt);
   if (/(three|3)\s*times|tid|thrice/.test(f)) return [8, 14, 20].map(fmt);
   if (/twice|(two|2)\s*times|bid|b\.i\.d/.test(f)) return [8, 20].map(fmt);
-  if (/once|daily|every day|(one|1)\s*time|at night|morning/.test(f)) return [/night|bedtime/.test(f) ? 21 : 8].map(fmt);
+  if (/once|daily|every day|(one|1)\s*time|at night|night|bedtime|morning/.test(f)) return [/night|bedtime/.test(f) ? 21 : 8].map(fmt);
   return [];
 }
 
@@ -43,7 +50,7 @@ export function toMinutes(t: string): number {
 
 export function planFromReview(d: ReviewData): PlanView {
   const plan: PlanView = {
-    patientName: d.run.patient.name, phone: d.run.patient.phone, meds: [], followUps: [], contacts: [], demo: false,
+    patientName: d.run.patient?.name || "Patient", phone: d.run.patient?.phone || "", meds: [], followUps: [], contacts: [], demo: false,
     instructions: { wound_care: [], activity: [], diet: [], warning_signs: [] },
   };
   for (const it of d.fields) {
@@ -65,6 +72,42 @@ export function planFromReview(d: ReviewData): PlanView {
     }
   }
   return plan;
+}
+
+export function planFromApprovedPlan(res: PatientPlanResponse): PlanView {
+  return {
+    patientName: res.patient_name || "Patient",
+    phone: res.phone || "",
+    version: res.version,
+    approvedAt: res.approved_at,
+    planDurationDays: res.plan_duration_days || 14,
+    meds: (res.medications || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      dose: m.dose ?? null,
+      frequency: m.frequency ?? null,
+      duration: m.duration ?? null,
+      times: m.times && m.times.length ? m.times : timesFor(m.frequency ?? null),
+    })),
+    followUps: (res.follow_ups || []).map((f) => ({
+      id: f.id,
+      what: f.what || "Follow-up",
+      when: f.when ?? null,
+      where: f.where ?? null,
+    })),
+    instructions: {
+      wound_care: res.instructions?.wound_care || [],
+      activity: res.instructions?.activity || [],
+      diet: res.instructions?.diet || [],
+      warning_signs: res.instructions?.warning_signs || [],
+    },
+    contacts: res.contacts || [],
+    caregivers: res.caregivers || [],
+    serverTasks: res.tasks_today || [],
+    run_id: res.run_id,
+    runId: res.run_id,
+    demo: res.demo ?? false,
+  };
 }
 
 export const demoPlan: PlanView = {

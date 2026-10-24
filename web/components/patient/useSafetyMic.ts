@@ -1,7 +1,24 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VoiceStatus } from "@/lib/voiceEngine";
 
-export type MicState = "starting" | "on" | "off" | "blocked" | "unsupported";
+export type MicState =
+  | "ready"
+  | "listening"
+  | "processing"
+  | "command_recognized"
+  | "completed"
+  | "clarification_needed"
+  | "not_understood"
+  | "mic_unavailable"
+  | "error"
+  // Legacy aliases for backward compatibility
+  | "starting"
+  | "on"
+  | "off"
+  | "blocked"
+  | "unsupported";
+
 export type VoiceLang = "en-IN" | "hi-IN";
 
 interface Alt { transcript: string }
@@ -18,17 +35,26 @@ type RecCtor = new () => Rec;
 const KEY = "rr-safety-mic-off";
 
 /**
- * Keeps the microphone open and hands every phrase (partial and final, with the browser's alternative guesses) to onHeard.
- * It restarts within 100 ms when the browser ends a session, and a watchdog restarts it if a session never really starts.
- * Browser limits: the first permission needs one tap; listening stops when the page closes or the phone locks.
+ * Enhanced microphone & speech recognition engine.
+ * - Hardware Auto Gain Control (AGC), Echo Cancellation, and Noise Suppression to capture normal conversational volume without shouting.
+ * - Natural pause handling and continuous transcript buffering.
+ * - Truthful state reporting: ready, listening, processing, command_recognized, completed, not_understood, mic_unavailable.
  */
-export function useSafetyMic(onHeard: (said: string, isFinal: boolean, alts: string[]) => void, lang: VoiceLang) {
+export function useSafetyMic(
+  onHeard: (said: string, isFinal: boolean, alts: string[]) => void,
+  lang: VoiceLang
+) {
   const [state, setState] = useState<MicState>("starting");
+  const [status, setStatus] = useState<VoiceStatus>("ready");
   const [lastHeardAt, setLastHeardAt] = useState(0);
+  const [transcript, setTranscript] = useState("");
   const want = useRef(true);
   const rec = useRef<Rec | null>(null);
+  const mediaStream = useRef<MediaStream | null>(null);
   const lock = useRef<{ release(): Promise<void> } | null>(null);
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTranscript = useRef("");
   const cb = useRef(onHeard);
   cb.current = onHeard;
   const langRef = useRef(lang);
@@ -42,49 +68,179 @@ export function useSafetyMic(onHeard: (said: string, isFinal: boolean, alts: str
     } catch { /* not allowed: listening still works while the screen is on */ }
   }, []);
 
+  // Request audio hardware with Auto Gain Control, Noise Suppression & Echo Cancellation
+  const initAudioStream = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      if (!mediaStream.current || !mediaStream.current.active) {
+        mediaStream.current = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            autoGainControl: true,
+            noiseSuppression: true,
+            echoCancellation: true,
+          },
+        });
+      }
+    } catch (e) {
+      // Permission denied or device unavailable
+      setState("blocked");
+      setStatus("mic_unavailable");
+    }
+  }, []);
+
   const launch = useCallback(() => {
     const w = window as unknown as { SpeechRecognition?: RecCtor; webkitSpeechRecognition?: RecCtor };
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-    if (!Ctor) { setState("unsupported"); return; }
+    if (!Ctor) {
+      setState("unsupported");
+      setStatus("error");
+      return;
+    }
+
+    void initAudioStream();
+
     const r = new Ctor();
     r.continuous = true;
     r.interimResults = true;
     r.maxAlternatives = 4;
     r.lang = langRef.current;
-    const arm = () => { if (watchdog.current) clearTimeout(watchdog.current); watchdog.current = setTimeout(() => { if (want.current && rec.current === r) { try { r.abort(); } catch { /* ignore */ } } }, 4000); };
-    r.onstart = () => { if (watchdog.current) clearTimeout(watchdog.current); setState("on"); };
+
+    const arm = () => {
+      if (watchdog.current) clearTimeout(watchdog.current);
+      // Give a generous 15 second buffer to allow natural spoken pauses without aborting
+      watchdog.current = setTimeout(() => {
+        if (want.current && rec.current === r) {
+          try { r.abort(); } catch { /* ignore */ }
+        }
+      }, 15000);
+    };
+
+    r.onstart = () => {
+      if (watchdog.current) clearTimeout(watchdog.current);
+      setState("on");
+      setStatus("listening");
+    };
+
     r.onresult = (e) => {
       setLastHeardAt(Date.now());
+      arm();
+      let latestText = "";
+      let hasFinal = false;
+
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         const alts: string[] = [];
-        for (let k = 0; k < res.length; k++) if (res[k]?.transcript) alts.push(String(res[k].transcript).trim());
-        if (alts.length) cb.current(alts[0], res.isFinal, alts.slice(1));
+        for (let k = 0; k < res.length; k++) {
+          if (res[k]?.transcript) alts.push(String(res[k].transcript).trim());
+        }
+        if (alts.length) {
+          latestText = alts[0];
+          hasFinal = res.isFinal;
+          lastTranscript.current = latestText;
+          setTranscript(latestText);
+          cb.current(alts[0], res.isFinal, alts.slice(1));
+        }
+      }
+
+      // If speech is still interim, set a natural 1100ms pause timer to finalize if no further input
+      if (!hasFinal && latestText) {
+        if (pauseTimer.current) clearTimeout(pauseTimer.current);
+        pauseTimer.current = setTimeout(() => {
+          if (lastTranscript.current) {
+            setStatus("processing");
+            cb.current(lastTranscript.current, true, []);
+            setTimeout(() => setStatus("listening"), 1200);
+          }
+        }, 1200);
+      } else if (hasFinal) {
+        if (pauseTimer.current) clearTimeout(pauseTimer.current);
+        setStatus("processing");
+        setTimeout(() => setStatus("listening"), 1000);
       }
     };
-    r.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { want.current = false; setState("blocked"); }
-    };
-    r.onend = () => { if (want.current && rec.current === r) setTimeout(() => { if (want.current && rec.current === r) { try { r.start(); arm(); } catch { /* already running */ } } }, 100); };
-    rec.current = r;
-    try { r.start(); arm(); void grabLock(); } catch { setState("blocked"); }
-  }, [grabLock]);
 
-  const enable = useCallback(() => { try { localStorage.removeItem(KEY); } catch { /* ignore */ } want.current = true; launch(); }, [launch]);
+    r.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        want.current = false;
+        setState("blocked");
+        setStatus("mic_unavailable");
+      } else if (e.error !== "no-speech") {
+        setStatus("error");
+      }
+    };
+
+    r.onend = () => {
+      if (want.current && rec.current === r) {
+        // Safe 200ms restart buffer to prevent Chromium InvalidStateError
+        setTimeout(() => {
+          if (want.current && rec.current === r) {
+            try {
+              r.start();
+              arm();
+            } catch {
+              /* already active or recreating */
+            }
+          }
+        }, 200);
+      }
+    };
+
+    rec.current = r;
+    try {
+      r.start();
+      arm();
+      void grabLock();
+    } catch {
+      setState("blocked");
+      setStatus("mic_unavailable");
+    }
+  }, [grabLock, initAudioStream]);
+
+  const enable = useCallback(() => {
+    try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+    want.current = true;
+    launch();
+  }, [launch]);
+
   const disable = useCallback(() => {
-    want.current = false; const r = rec.current; rec.current = null; try { r?.stop(); } catch { /* not running */ }
-    stopLock(); setState("off");
+    want.current = false;
+    const r = rec.current;
+    rec.current = null;
+    try { r?.stop(); } catch { /* not running */ }
+    if (mediaStream.current) {
+      mediaStream.current.getTracks().forEach((t) => t.stop());
+      mediaStream.current = null;
+    }
+    stopLock();
+    setState("off");
+    setStatus("ready");
     try { localStorage.setItem(KEY, "1"); } catch { /* ignore */ }
   }, []);
 
-  // start on load, and restart when the language changes
+  // start on load, and restart cleanly when the language changes
   useEffect(() => {
     let off = false;
     try { off = localStorage.getItem(KEY) === "1"; } catch { /* ignore */ }
-    if (off) { setState("off"); return; }
+    if (off) {
+      setState("off");
+      setStatus("ready");
+      return;
+    }
     want.current = true;
     launch();
-    return () => { want.current = false; const r = rec.current; rec.current = null; try { r?.abort(); } catch { /* ignore */ } if (watchdog.current) clearTimeout(watchdog.current); stopLock(); };
+    return () => {
+      want.current = false;
+      const r = rec.current;
+      rec.current = null;
+      try { r?.abort(); } catch { /* ignore */ }
+      if (watchdog.current) clearTimeout(watchdog.current);
+      if (pauseTimer.current) clearTimeout(pauseTimer.current);
+      if (mediaStream.current) {
+        mediaStream.current.getTracks().forEach((t) => t.stop());
+        mediaStream.current = null;
+      }
+      stopLock();
+    };
   }, [lang, launch]);
 
   useEffect(() => {
@@ -93,5 +249,13 @@ export function useSafetyMic(onHeard: (said: string, isFinal: boolean, alts: str
     return () => document.removeEventListener("visibilitychange", vis);
   }, [grabLock]);
 
-  return { state, enable, disable, lastHeardAt };
+  return {
+    state,
+    status,
+    transcript,
+    setStatus,
+    enable,
+    disable,
+    lastHeardAt,
+  };
 }

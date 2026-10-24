@@ -37,7 +37,14 @@ def install_stubs(runs_dir: Path):
                 elif hasattr(type(self), k): setattr(self, k, getattr(type(self), k))
                 else: raise TypeError(f"missing {k}")
 
+        def model_dump_json(self):
+            return json.dumps(getattr(self, "__dict__", {}), default=str)
+
+        def model_dump(self, mode="python"):
+            return getattr(self, "__dict__", {})
+
     pd.BaseModel = BaseModel
+    pd.Field = lambda default=None, default_factory=None, **k: default if default is not None else (default_factory() if default_factory else None)
     st = types.ModuleType("app.services.storage")
 
     class FakeStore:
@@ -46,6 +53,8 @@ def install_stubs(runs_dir: Path):
         def has(self, rid, name): return (runs_dir / rid / name).exists()
         def read(self, rid, name): return json.loads((runs_dir / rid / name).read_text(encoding="utf-8"))
         def list_runs(self): return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(runs_dir.glob("*/meta.json"))]
+        def resolve_run_id(self, rid): return rid if self.exists(rid) else None
+        def audit(self, *a, **k): pass
 
     st.store = FakeStore()
     sys.modules.update({"fastapi": fa, "pydantic": pd, "app.services.storage": st})

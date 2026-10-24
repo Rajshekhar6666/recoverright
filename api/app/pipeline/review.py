@@ -50,7 +50,28 @@ def apply_decision(items: list[ReviewField], field_id: str, action: str,
     return it
 
 
-def build_approved_plan(run_id: str, meta: dict, items: list[ReviewField], approver: str) -> dict:
+def _estimate_plan_duration_days(items: list[dict]) -> Optional[int]:
+    """Estimates recovery duration in days from medications and follow-ups."""
+    max_days = 0
+    import re
+    for it in items:
+        attrs = it.get("attrs") or {}
+        dur = (attrs.get("duration") or "").lower()
+        m_day = re.search(r"(\d+)\s*(?:days?|d)\b", dur)
+        if m_day:
+            max_days = max(max_days, int(m_day.group(1)))
+        m_wk = re.search(r"(\d+)\s*(?:weeks?|wks?|w)\b", dur)
+        if m_wk:
+            max_days = max(max_days, int(m_wk.group(1)) * 7)
+        when = (attrs.get("when") or "").lower()
+        m_fu = re.search(r"(?:in\s+)?(\d+)\s*(?:weeks?|wks?)\b", when)
+        if m_fu:
+            max_days = max(max_days, int(m_fu.group(1)) * 7)
+    return max_days if max_days > 0 else 14
+
+
+def build_approved_plan(run_id: str, meta: dict, items: list[ReviewField], approver: str,
+                        version: int = 1, note: Optional[str] = None) -> dict:
     accepted, removed = [], []
     for it in items:
         f, d = it.field, it.decision
@@ -69,9 +90,14 @@ def build_approved_plan(run_id: str, meta: dict, items: list[ReviewField], appro
             "edited_from": edited_from, "issues_at_review": f.issues,
             "source": {"block_id": f.block_id, "quote": f.quote, "units": f.units},
         })
+    duration_days = _estimate_plan_duration_days(accepted)
+    patient_token = meta.get("patient_token") or meta.get("patient", {}).get("patient_token")
     return {
-        "run_id": run_id, "version": 1, "approved_by": approver,
+        "run_id": run_id, "version": version, "approved_by": approver,
         "approved_at": datetime.now(timezone.utc).isoformat(),
         "patient": meta.get("patient", {}), "source_file": meta.get("filename"),
         "items": accepted, "removed": removed,
+        "patient_token": patient_token,
+        "plan_duration_days": duration_days,
+        "approval_note": note,
     }

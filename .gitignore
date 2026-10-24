@@ -5,6 +5,27 @@ __pycache__/
 .env
 *.pyc
 
+# Build artefacts
 *.zip
+
+# Patient data — never commit to source control
 data/runs/
 data/cache/
+data/recordings/
+data/patient_tokens.json
+data/caregiver_tokens.json
+data/help/
+
+# ML model weights
+*.pt
+*.onnx
+*.onnx.data
+
+# Backup folders
+backup_stage*/
+_stage*/
+_update/
+web_backup_*/
+
+# Python test cache
+.pytest_cache/

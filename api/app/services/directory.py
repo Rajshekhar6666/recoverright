@@ -21,7 +21,9 @@ ATTR_ORDER = {
 
 def _patient(meta: dict) -> dict:
     p = meta.get("patient") or {}
-    return {k: p.get(k) or "" for k in ("name", "language", "phone", "guardian_name", "guardian_phone")}
+    res = {k: p.get(k) or "" for k in ("name", "language", "phone", "guardian_name", "guardian_phone")}
+    res["patient_token"] = p.get("patient_token") or meta.get("patient_token") or ""
+    return res
 
 
 def patient_summary(meta: dict, help_counts: Optional[dict] = None) -> dict:
@@ -37,10 +39,14 @@ def patient_summary(meta: dict, help_counts: Optional[dict] = None) -> dict:
         "approved_by": meta.get("approved_by"),
         "filename": meta.get("filename", ""),
         "created_at": meta.get("created_at", ""),
+        "patient_token": meta.get("patient_token") or meta.get("patient", {}).get("patient_token") or "",
+        "current_version": meta.get("current_version", 1),
         "to_check": to_check if counts else None,
         "help_active": hc.get("active", 0),
         "help_critical_active": hc.get("critical_active", 0),
         "help_total": hc.get("total", 0),
+        "patient_slug": meta.get("patient_slug") or "",
+        "dashboard_url": f"/p/demo/{meta['patient_slug']}" if meta.get("patient_slug") else f"/p/{meta.get('patient_token', '')}",
     }
 
 
@@ -84,6 +90,16 @@ def humanize_audit(e: dict) -> dict:
         tone, text = "bad", f"Removed field {e.get('field_id', '')}"
     elif action == "plan.approved":
         tone, text = "ok", f"Plan approved and locked ({e.get('items', '?')} items)"
+    elif action == "plan.reapproved":
+        tone, text = "ok", f"Plan revised and approved as v{e.get('version', '?')} ({e.get('items', '?')} items)"
+    elif action == "run.retried":
+        tone, text = "info", "Extraction pipeline restarted by staff"
+    elif action == "task.completed":
+        tone, text = "ok", f"Task completed: {e.get('task_id', '')}"
+    elif action == "medication.reported_taken":
+        tone, text = "ok", f"Medication reported taken: {e.get('med_id', '')} via {e.get('via', 'app')}"
+    elif action == "medication.reminder_ack":
+        tone, text = "info", f"Medication reminder acknowledged: {e.get('med_id', '')}"
     return {"at": e.get("ts", ""), "actor": actor, "action": action, "text": text, "note": note, "tone": tone}
 
 
@@ -115,7 +131,8 @@ def group_plan(plan: Optional[dict]) -> list[dict]:
     return [{"category": c, "label": CATEGORY_LABEL.get(c, c.replace("_", " ").title()), "items": groups[c]} for c in cats]
 
 
-def patient_detail(meta: dict, plan: Optional[dict], audit: list[dict], help_items: list[dict]) -> dict:
+def patient_detail(meta: dict, plan: Optional[dict], audit: list[dict], help_items: list[dict],
+                   tasks: Optional[list] = None, doses: Optional[list] = None) -> dict:
     hc = {"active": 0, "critical_active": 0, "total": len(help_items)}
     for h in help_items:
         if h["status"] != "resolved":
@@ -123,10 +140,24 @@ def patient_detail(meta: dict, plan: Optional[dict], audit: list[dict], help_ite
             hc["critical_active"] += 1 if h["severity"] == "critical" else 0
     return {
         "summary": patient_summary(meta, hc),
-        "run": {k: meta.get(k) for k in ("run_id", "status", "filename", "created_at", "approved", "approved_by", "error", "counts")},
+        "run": {
+            "run_id": meta.get("run_id"),
+            "status": meta.get("status"),
+            "filename": meta.get("filename"),
+            "created_at": meta.get("created_at"),
+            "approved": meta.get("approved"),
+            "approved_by": meta.get("approved_by"),
+            "error": meta.get("error"),
+            "counts": meta.get("counts"),
+            "patient_token": meta.get("patient_token") or meta.get("patient", {}).get("patient_token"),
+            "current_version": meta.get("current_version", 1),
+        },
         "plan": group_plan(plan),
         "plan_removed": (plan or {}).get("removed", []),
         "plan_approved_at": (plan or {}).get("approved_at"),
+        "plan_version": (plan or {}).get("version", meta.get("current_version", 1)),
         "activity": [humanize_audit(a) for a in audit][::-1],  # newest first
         "help": help_items,
+        "tasks": tasks or [],
+        "doses": doses or [],
     }

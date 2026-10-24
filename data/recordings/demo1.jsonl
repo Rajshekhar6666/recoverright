@@ -1,6 +1,0 @@
-{"run_id":"demo1","seq":1,"ts":"2026-10-15T10:41:05.969013Z","stage":"upload","type":"run.uploaded","payload":{"filename":"knee_replacement.docx"}}
-{"run_id":"demo1","seq":2,"ts":"2026-10-15T10:41:06.995462Z","stage":"parse","type":"parse.done","payload":{"blocks":42}}
-{"run_id":"demo1","seq":3,"ts":"2026-10-15T10:41:08.002201Z","stage":"extract_a","type":"extract.a.done","payload":{"fields":14}}
-{"run_id":"demo1","seq":4,"ts":"2026-10-15T10:41:09.014360Z","stage":"extract_b","type":"extract.b.done","payload":{"fields":13}}
-{"run_id":"demo1","seq":5,"ts":"2026-10-15T10:41:10.026393Z","stage":"ground","type":"ground.field.fail","payload":{"field":"medications[1].dose","reason":"number not in quote"}}
-{"run_id":"demo1","seq":6,"ts":"2026-10-15T10:41:11.032569Z","stage":"reconcile","type":"reconcile.done","payload":{"agreed":11,"review":2,"conflict":1}}
