@@ -28,6 +28,8 @@ export type CommandIntentType =
   | "warning_signs"
   | "emergency"
   | "staff_nav_patient"
+  | "staff_delete_patient"
+  | "staff_call_patient"
   | "staff_nav_report"
   | "staff_nav_profile"
   | "staff_nav_care_plan"
@@ -38,6 +40,7 @@ export type CommandIntentType =
   | "staff_query_incomplete"
   | "staff_add_doc"
   | "staff_approve"
+  | "staff_help"
   | "unknown";
 
 export interface StaffPatientRef {
@@ -123,7 +126,27 @@ export interface TaskResolutionResult {
 // ----------------------------------------------------------------- Linguistic Helpers
 export function normalizeSpoken(raw: string): string {
   if (!raw) return "";
-  const s = normalize(raw)
+  let pre = raw.toLowerCase()
+    .replace(/टास्क/g, "task")
+    .replace(/वन/g, "one 1")
+    .replace(/टू/g, "two 2")
+    .replace(/थ्री/g, "three 3")
+    .replace(/फोर/g, "four 4")
+    .replace(/डन/g, "done")
+    .replace(/कम्प्लीट/g, "complete")
+    .replace(/हेल्प/g, "help")
+    .replace(/मदद/g, "help")
+    .replace(/पहला/g, "first 1")
+    .replace(/पहले/g, "first 1")
+    .replace(/दूसरा/g, "second 2")
+    .replace(/तीसरा/g, "third 3")
+    .replace(/चौथा/g, "fourth 4")
+    .replace(/एक/g, "1")
+    .replace(/दो/g, "2")
+    .replace(/तीन/g, "3")
+    .replace(/चार/g, "4")
+    .replace(/काम/g, "task");
+  const s = normalize(pre)
     .replace(/[,\.?!;]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -243,18 +266,20 @@ export function parseBilingualCommand(raw: string, lang: "en" | "hi" = "en"): Pa
     return { type: "task_question", target, detail: raw, confidence: 0.9, isQuestion: true };
   }
 
-  // 6. Numbered Task Completion (e.g. "Teesra kaam ho gaya", "Task 3 complete", "Third task done")
+  // 6. Numbered Task Completion (e.g. "Teesra kaam ho gaya", "Task 3 complete", "Task 1", "Third task done")
   let targetNum: number | "all" | "last" | "pending" | undefined;
-  if (/\b(pehla|pehli|1st|first|one)\b/i.test(s) || /(पहला|पहले)/.test(raw)) targetNum = 1;
-  else if (/\b(doosra|doosri|dusra|dusri|2nd|second|two)\b/i.test(s) || /(दूसरा|दूसरे)/.test(raw)) targetNum = 2;
-  else if (/\b(teesra|teesri|tisra|tisri|3rd|third|three)\b/i.test(s) || /(तीसरा|तीसरे)/.test(raw)) targetNum = 3;
-  else if (/\b(chautha|chauthi|4th|fourth|four)\b/i.test(s) || /(चौथा|चौथे)/.test(raw)) targetNum = 4;
+  if (/\b(?:task\s*)?(?:1|1st|first|one|pehla|pehli|ek)\b/i.test(s) || /(पहला|पहले|एक)/.test(raw)) targetNum = 1;
+  else if (/\b(?:task\s*)?(?:2|2nd|second|two|doosra|doosri|dusra|dusri|do)\b/i.test(s) || /(दूसरा|दूसरे|दो)/.test(raw)) targetNum = 2;
+  else if (/\b(?:task\s*)?(?:3|3rd|third|three|teesra|teesri|tisra|tisri|teen)\b/i.test(s) || /(तीसरा|तीसरे|तीन)/.test(raw)) targetNum = 3;
+  else if (/\b(?:task\s*)?(?:4|4th|fourth|four|chautha|chauthi|chaar)\b/i.test(s) || /(चौथा|चौथे|चार)/.test(raw)) targetNum = 4;
+  else if (/\b(?:task\s*)?(?:5|5th|fifth|five|paanchva|paanch)\b/i.test(s) || /(पाँच|पांच)/.test(raw)) targetNum = 5;
+  else if (/\b(?:task\s*)?(?:6|6th|sixth|six|chhatva|chhah)\b/i.test(s) || /(छह|छठा)/.test(raw)) targetNum = 6;
   else if (/\b(aakhri|akhri|last)\b/i.test(s) || /(आखरी|आखिरी)/.test(raw)) targetNum = "last";
   else if (/\b(saare|sare|sab|all)\b/i.test(s) || /(सारे|सब)/.test(raw)) targetNum = "all";
   else if (/\b(jo pending tha|jo pending hai|pending wala|pending task)\b/i.test(s) || /(पेंडिंग)/.test(raw)) targetNum = "pending";
 
   const isCompletionVerb =
-    /\b(ho gaya|ho gya|hogaya|ho gayi|hogayi|ho gae|ho gaye|kar li|karli|kar liya|karliya|kar lee|kar diya|kardiya|kar dia|kardia|le li|leli|le liya|leliya|le lia|lelia|le lee|kha li|khali|kha liya|khaliya|kha lia|khalia|pee li|peeli|pee liya|peeliya|complete|completed|done|finish|finished|took|taken|ticked|checked|drank|khaya)\b/i.test(s) ||
+    /\b(ho gaya|ho gya|hogaya|ho gayi|hogayi|ho gae|ho gaye|kar li|karli|kar liya|karliya|kar lee|kar diya|kardiya|kar dia|kardia|le li|leli|le liya|leliya|le lia|lelia|le lee|kha li|khali|kha liya|khaliya|kha lia|khalia|pee li|peeli|pee liya|peeliya|complete|completed|comple|done|finish|finished|took|taken|ticked|tick|checked|check|mark|marked|drank|khaya)\b/i.test(s) ||
     /(हो गया|हो गई|हो गए|कर ली|कर लिया|कर दिया|पूरा हुआ|पूरा हो गया|पी लिया|पी ली|खा लिया|खा ली|ले ली|ले लिया)/.test(raw);
 
   if (targetNum !== undefined && (isCompletionVerb || /\btask\b/i.test(s) || /\bkaam\b/i.test(s) || /(काम|टास्क)/.test(raw))) {
@@ -299,13 +324,31 @@ export function parseBilingualCommand(raw: string, lang: "en" | "hi" = "en"): Pa
     return { type: "staff_nav_pending_review", confidence: 0.92 };
   }
 
-  // 13. Staff commands: Navigate to patient
-  const navMatch =
-    s.match(/\b(?:open|go to|show|select|view)\s+(?:patient\s+)?([a-z]+)/i) ||
-    raw.match(/(?:मरीज़|मरीज)\s+([^\s]+)\s+(?:खोलो|दिखाओ)/);
+  // 13. Staff commands: Delete patient
+  const deleteMatch =
+    s.match(/\b(?:delete|remove|hatao|hata do|hata de|mitao)\s+(?:patient\s+)?([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i) ||
+    raw.match(/(?:मरीज़|मरीज)?\s*([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)\s*(?:को\s+)?(?:हटाओ|हटा दें|हटा दो|डिलीट|मिटाओ)/);
 
-  if (navMatch) {
-    return { type: "staff_nav_patient", target: navMatch[1], confidence: 0.85 };
+  if (deleteMatch && !isStaffStopWord(deleteMatch[1])) {
+    return { type: "staff_delete_patient", target: deleteMatch[1].trim(), confidence: 0.9 };
+  }
+
+  // 13b. Staff commands: Call patient
+  const callMatch =
+    s.match(/\b(?:call|phone|ring)\s+(?:patient\s+)?([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i) ||
+    raw.match(/(?:मरीज़|मरीज)?\s*([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)\s*(?:को\s+)?(?:कॉल|फोन)/);
+
+  if (callMatch && !isStaffStopWord(callMatch[1])) {
+    return { type: "staff_call_patient", target: callMatch[1].trim(), confidence: 0.9 };
+  }
+
+  // 13c. Staff commands: Navigate to patient
+  const navMatch =
+    s.match(/\b(?:open|go to|show|select|view)\s+(?:patient\s+)?([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i) ||
+    raw.match(/(?:मरीज़|मरीज)\s+([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)\s+(?:खोलो|दिखाओ)/);
+
+  if (navMatch && !isStaffStopWord(navMatch[1])) {
+    return { type: "staff_nav_patient", target: navMatch[1].trim(), confidence: 0.85 };
   }
 
   // 14. Staff commands: Add document
@@ -794,6 +837,12 @@ export function extractPatientNameFromUtterance(raw: string): string | null {
   const patientPrefixMatch = s.match(/(?:patient|मरीज़|मरीज)\s+([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i);
   if (patientPrefixMatch && !isStaffStopWord(patientPrefixMatch[1])) return patientPrefixMatch[1].trim();
 
+  // Pattern D2: "Delete patient Priya Sharma" / "Delete Priya" / "मरीज़ प्रिया को हटाओ"
+  const deleteNameMatch =
+    s.match(/\b(?:delete|remove|hatao|hata do|hata de|mitao)\s+(?:patient\s+)?([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)/i) ||
+    s.match(/(?:मरीज़|मरीज)?\s*([a-zA-Z\u0900-\u097F]+(?:\s+[a-zA-Z\u0900-\u097F]+)?)\s*(?:को\s+)?(?:हटाओ|हटा दें|हटा दो|डिलीट|मिटाओ)/i);
+  if (deleteNameMatch && !isStaffStopWord(deleteNameMatch[1])) return deleteNameMatch[1].trim();
+
   // Pattern E: "Mujhe Priya ki report dikhao"
   const mujheMatch = s.match(/mujhe\s+([a-zA-Z\u0900-\u097F]+)\s+(?:ki|ka|ke)/i);
   if (mujheMatch && !isStaffStopWord(mujheMatch[1])) return mujheMatch[1].trim();
@@ -815,6 +864,25 @@ export function resolveStaffNavigation(
   context: StaffNavigationContext
 ): StaffNavigationResult {
   const s = raw.trim();
+
+  // 0. Staff Voice Help / Available Commands
+  if (
+    /\b(help|commands|what can i say|guide|options|kya bol sakte|voice commands)\b/i.test(s) ||
+    /(मदद|सहायता|कमांड|निर्देश|क्या बोलूँ)/.test(raw)
+  ) {
+    return {
+      status: "query_answered",
+      actionType: "dashboard",
+      speechResponse: {
+        en: "You can say: Open patient Priya, Call patient Rahul, Delete patient Anita, Show analytics, Pending reviews, or Upload document.",
+        hi: "आप बोल सकते हैं: मरीज़ प्रिया को खोलो, राहुल को कॉल करो, अनीता को हटाओ, एनालिटिक्स दिखाओ, या पेंडिंग समीक्षा।",
+      },
+      uiFeedback: {
+        en: "Commands: 'Open [Name]', 'Call [Name]', 'Delete [Name]', 'Show analytics', 'Pending reviews'",
+        hi: "कमांड: 'मरीज़ खोलो', 'कॉल करो', 'डिलीट करो', 'एनालिटिक्स दिखाओ', 'पेंडिंग रिव्यू'",
+      },
+    };
+  }
 
   // 1. Staff Dashboard Navigation
   if (

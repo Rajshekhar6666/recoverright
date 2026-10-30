@@ -15,6 +15,22 @@ import {
   type TaskContextItem,
 } from "@/lib/voiceEngine";
 import HelpJourney from "./HelpJourney";
+import {
+  EMOTIONAL_OPTIONS,
+  generateEmotionalCounselingReply,
+  generatePersonaAlarmScript,
+  generatePersonaMilestoneSpeech,
+  generatePersonaSosSpeech,
+  generatePersonaTaskDoneSpeech,
+  loadEmotionalStatePreferenceWeb,
+  loadPersonaPreferenceWeb,
+  PERSONA_PROFILES,
+  saveEmotionalStatePreferenceWeb,
+  savePersonaPreferenceWeb,
+  speakPersonaWeb,
+  type PatientEmotionalState,
+  type VoicePersonaId,
+} from "@/lib/voicePersona";
 import MilestoneCelebrationModal from "./MilestoneCelebrationModal";
 import PatientCallModal from "./PatientCallModal";
 import { PillScannerModal } from "./PillScannerModal";
@@ -81,6 +97,28 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
   const [isCallPeerMuted, setIsCallPeerMuted] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
   const callClientRef = useRef<WebRTCClient | null>(null);
+
+  // Voice Persona Companion & Emotional Sentiment State
+  const [activePersona, setActivePersona] = useState<VoicePersonaId>(() => loadPersonaPreferenceWeb());
+  const [activeEmotionalState, setActiveEmotionalState] = useState<PatientEmotionalState>(() => loadEmotionalStatePreferenceWeb());
+
+  const handlePersonaSelect = (id: VoicePersonaId) => {
+    setActivePersona(id);
+    savePersonaPreferenceWeb(id);
+    const prof = PERSONA_PROFILES[id];
+    const greeting = globalLang === "hi" ? prof.greetingHi(first) : prof.greetingEn(first);
+    speakPersonaWeb(greeting, id, globalLang, activeEmotionalState);
+    setToast(globalLang === "hi" ? `वॉयस साथी: ${prof.displayNameHi}` : `Voice Companion: ${prof.displayName}`);
+  };
+
+  const handleEmotionalStateSelect = (state: PatientEmotionalState) => {
+    setActiveEmotionalState(state);
+    saveEmotionalStatePreferenceWeb(state);
+    const counseling = generateEmotionalCounselingReply(activePersona, state, first, globalLang);
+    speakPersonaWeb(counseling, activePersona, globalLang, state);
+    const opt = EMOTIONAL_OPTIONS.find((o) => o.id === state);
+    setToast(globalLang === "hi" ? `भावना समर्थन: ${opt?.labelHi || state}` : `Emotional Support: ${opt?.label || state}`);
+  };
 
   // AI Pill Scanner State
   const [isPillScannerOpen, setIsPillScannerOpen] = useState(false);
@@ -281,7 +319,7 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
     lastSpoken.current = text;
     speakingUntil.current = Date.now() + text.length * 75 + 1500;
     if (!soundOn || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    speakConfirmation(text, globalLang);
+    speakPersonaWeb(text, activePersona, globalLang, activeEmotionalState);
   };
 
   const markSlot = (via: "app_button" | "voice" = "app_button"): { time: string; names: string[] } | null => {
@@ -296,6 +334,8 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
         api.reportDose(token, d.med.id, true, via).catch(() => {});
       });
     }
+    const cheer = generatePersonaTaskDoneSpeech(activePersona, slot.map((d) => d.med.name).join(", "), first, globalLang);
+    say(cheer);
     return { time: slot[0].time, names: slot.map((d) => d.med.name) };
   };
   const unmarkLast = () => {
@@ -357,35 +397,40 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
 
   // ---- distress: the hospital is alerted at once, with the patient's own words
   const triggerDistress = (said: string, severity: Severity) => {
-    if (Date.now() - lastDistress.current < DISTRESS_COOLDOWN_MS) return;
-    if (!start(said, severity, said === "button" ? "button" : "voice")) return;
+    if (Date.now() - lastDistress.current < DISTRESS_COOLDOWN_MS) {
+      const personaSos = generatePersonaSosSpeech(activePersona, first, globalLang);
+      const waitMsg = globalLang === "hi"
+        ? "आपकी सहायता का अनुरोध पहले से सक्रिय है। कृपया शांत बैठें, टीम आ रही है।"
+        : "Your help request is already active. Please sit down, help is on the way.";
+      say(`${personaSos} ${waitMsg}`);
+      return;
+    }
+    const started = start(said, severity, said === "button" ? "button" : "voice");
     lastDistress.current = Date.now();
     setLog((l) => [...l.slice(-5), { who: "you", text: said === "button" ? (globalLang === "hi" ? "(मदद बटन)" : "(help button)") : said }]);
     const alertMsg = globalLang === "hi"
       ? (severity === "critical" ? "मैंने आपकी देखभाल टीम को सूचित कर दिया है। कृपया बैठ जाएं और वहीं रहें।" : "मैंने आपकी केयर टीम को बता दिया है। कृपया बैठ जाएं।")
       : (severity === "critical" ? "I have alerted your care team. Please sit down and stay where you are." : "I have told your care team how you feel. Please sit down.");
-    say(alertMsg);
+    const personaSos = generatePersonaSosSpeech(activePersona, first, globalLang);
+    say(`${personaSos} ${alertMsg}`);
   };
 
   // ---- what the patient said
   const handle = (said: string, isFinal: boolean, alts: string[]) => {
-    if (Date.now() < speakingUntil.current + 5000 && isEcho(said, lastSpoken.current)) return; // the app hearing itself
+    if (typeof window !== "undefined" && window.speechSynthesis?.speaking && isEcho(said, lastSpoken.current)) return;
     setLive(isFinal ? "" : said);
+
+    // Immediate distress check across utterance, alternatives, and bilingual parsing
     const d = detectDistress([said, ...alts], { high });
-    if (d) {
+    const bcmd = parseBilingualCommand(said, globalLang);
+    if (d || bcmd.type === "emergency") {
       mic.setStatus("command_recognized");
-      return triggerDistress(said, d.severity);
+      return triggerDistress(said, d?.severity || "critical");
     }
     if (!isFinal) return;
 
     mic.setStatus("processing");
-
-    // Bilingual command evaluation
-    const bcmd = parseBilingualCommand(said, globalLang);
-    if (bcmd.type === "emergency") {
-      mic.setStatus("command_recognized");
-      return triggerDistress(said, "critical");
-    }
+    setLog((l) => [...l.slice(-5), { who: "you", text: said }]);
 
     // Contextual task resolution for natural Hindi/Hinglish/English
     const taskContextList: TaskContextItem[] = tasks.map((tItem) => ({
@@ -554,8 +599,9 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
     if (!due) return;
     reminded.current.add(due.key);
     setReminder(due.key);
-    say(globalLang === "hi" ? `आपकी दवा ${due.med.name} का समय हो गया है। क्या आपने इसे ले लिया?` : `It is time for your ${due.med.name}. Did you take it?`);
-  }, [nowMin, doses, taken, reminder, journey, globalLang]); // eslint-disable-line react-hooks/exhaustive-deps
+    const alarmScript = generatePersonaAlarmScript(activePersona, due.med.name, due.med.dose || "", first, globalLang, activeEmotionalState);
+    say(alarmScript.spokenText);
+  }, [nowMin, doses, taken, reminder, journey, globalLang, activePersona, activeEmotionalState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTask = (tItem: Task) => {
     if (tItem.id === "med") {
@@ -569,6 +615,10 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
     }
     const nextDone = !doneTasks.has(tItem.id);
     setDoneTasks((s) => { const n = new Set(s); if (n.has(tItem.id)) n.delete(tItem.id); else n.add(tItem.id); return n; });
+    if (nextDone) {
+      const cheer = generatePersonaTaskDoneSpeech(activePersona, tItem.title, first, globalLang);
+      say(cheer);
+    }
     if (token && token !== "demo") {
       api.updateTask(token, tItem.id, nextDone ? "complete" : "reset", "patient").catch(() => {});
     }
@@ -645,7 +695,7 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
       )}
 
       <aside className="pt-side">
-        <div className="pt-brand"><span><Icon.heart size={22} /></span><div><b>RecoverRight</b><small>Your recovery companion</small></div></div>
+        <div className="pt-brand"><img src="/logo.png" alt="RecoverRight" style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain", marginRight: 10 }} /><div><b>RecoverRight</b><small>Your recovery companion</small></div></div>
         <nav>
           <a href="#home" className="is-on"><Icon.home size={18} />{globalLang === "hi" ? "मुख्य पृष्ठ" : "Home"}</a>
           <a href="#plan"><Icon.list size={18} />{t.ptRecoveryPlan}</a>
@@ -664,6 +714,125 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
           <LanguageSwitcher />
           <span className="pt-avatar">{first[0]?.toUpperCase()}</span>
         </header>
+
+        {/* Voice Persona Companion Selector */}
+        <section
+          className="pt-persona-container"
+          aria-label="Voice Persona Companion"
+          style={{
+            background: "linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)",
+            border: "1.5px solid #a7f3d0",
+            borderRadius: 16,
+            padding: "14px 18px",
+            marginBottom: 16,
+            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.08)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22 }}>🎙️</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#065f46" }}>
+                  {globalLang === "hi" ? "अपना वॉयस साथी चुनें (Voice Persona Companion)" : "Your Voice Persona Companion"}
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#047857" }}>
+                  {globalLang === "hi"
+                    ? "अलार्म, माइलस्टोन और बातचीत आपके चुने हुए साथी की बोली और स्नेह में होगी"
+                    : "Reminders, milestone celebrations & spoken care in your chosen voice"}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#d1fae5", padding: "4px 10px", borderRadius: 9999 }}>
+              <span style={{ fontSize: 13 }}>{PERSONA_PROFILES[activePersona].emoji}</span>
+              <b style={{ fontSize: 12, color: "#065f46" }}>
+                {globalLang === "hi" ? PERSONA_PROFILES[activePersona].displayNameHi : PERSONA_PROFILES[activePersona].displayName} (Active)
+              </b>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+            {(Object.keys(PERSONA_PROFILES) as VoicePersonaId[]).map((pid) => {
+              const prof = PERSONA_PROFILES[pid];
+              const isSelected = activePersona === pid;
+              return (
+                <button
+                  key={pid}
+                  type="button"
+                  onClick={() => handlePersonaSelect(pid)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 12px",
+                    borderRadius: 12,
+                    border: isSelected ? "2px solid #059669" : "1px solid #cbd5e1",
+                    background: isSelected ? "#ecfdf5" : "#ffffff",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s ease",
+                    boxShadow: isSelected ? "0 2px 8px rgba(5, 150, 105, 0.2)" : "none",
+                  }}
+                  aria-pressed={isSelected}
+                >
+                  <span style={{ fontSize: 22 }}>{prof.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <b style={{ fontSize: 13, color: isSelected ? "#065f46" : "#1e293b" }}>
+                        {globalLang === "hi" ? prof.displayNameHi : prof.displayName}
+                      </b>
+                      {isSelected && <span style={{ fontSize: 10, color: "#059669" }}>●</span>}
+                    </div>
+                    <small style={{ display: "block", fontSize: 10.5, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {globalLang === "hi" ? prof.roleDescHi : prof.roleDesc}
+                    </small>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Emotional Sentiment & Feelings Selector */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed #a7f3d0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#065f46" }}>
+                {globalLang === "hi" ? "💭 आज कैसा महसूस कर रहे हैं? (Emotional Sentiment)" : "💭 How are you feeling today?"}
+              </span>
+              <span style={{ fontSize: 11, color: "#047857" }}>
+                {globalLang === "hi" ? "आवाज व सुझाव आपकी मनोदशा अनुसार बदलेंगे" : "Acoustics & comforting tone adapt to your state"}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {EMOTIONAL_OPTIONS.map((opt) => {
+                const isCur = activeEmotionalState === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleEmotionalStateSelect(opt.id)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "5px 11px",
+                      borderRadius: 20,
+                      border: isCur ? "1.5px solid #059669" : "1px solid #cbd5e1",
+                      background: isCur ? "#059669" : "#ffffff",
+                      color: isCur ? "#ffffff" : "#334155",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: isCur ? 600 : 500,
+                      transition: "all 0.15s ease",
+                      boxShadow: isCur ? "0 2px 6px rgba(5, 150, 105, 0.25)" : "none",
+                    }}
+                  >
+                    <span>{opt.emoji}</span>
+                    <span>{globalLang === "hi" ? opt.labelHi : opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
         <div className="pt-grid">
           <section className="pt-col">
@@ -824,11 +993,11 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
                           <b>{m.name}{m.dose ? ` ${m.dose}` : ""}</b>
                           <small>{m.times.length ? "" : m.frequency ?? (globalLang === "hi" ? "निर्देशानुसार लें" : "Take as directed")}{m.duration ? `${m.times.length ? "" : " · "}${m.duration}` : ""}</small>
                           <div className="pt-doses">
-                            {m.times.map((timeStr) => {
+                            {m.times.map((timeStr, idx) => {
                               const k = `${m.id}@${timeStr}`;
                               const on = taken.has(k);
                               return (
-                                <button key={k} className={`pt-dose${on ? " is-on" : ""}${pop === k ? " is-pop" : ""}${!on && nextDose?.key === k ? " is-next" : ""}`} aria-pressed={on}
+                                <button key={`${k}-${idx}`} className={`pt-dose${on ? " is-on" : ""}${pop === k ? " is-pop" : ""}${!on && nextDose?.key === k ? " is-next" : ""}`} aria-pressed={on}
                                   onClick={() => {
                                     if (on) {
                                       setTaken((s) => { const n = new Set(s); n.delete(k); return n; });
@@ -840,6 +1009,8 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
                                       setPop(k);
                                       if (token && token !== "demo") {
                                         api.reportDose(token, m.id, true, "app_button").catch(() => {});
+                                        const cheer = generatePersonaTaskDoneSpeech(activePersona, m.name, first, globalLang);
+                                        say(cheer);
                                       }
                                     }
                                   }}>
@@ -1034,6 +1205,8 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
       <MilestoneCelebrationModal
         milestone={activeMilestone}
         onDismiss={() => setActiveMilestone(null)}
+        persona={activePersona}
+        patientName={first}
       />
 
       {/* Real-Time Telehealth Calling Modal */}
@@ -1058,6 +1231,7 @@ export default function PatientHome({ plan, token }: { plan: PlanView; token: st
         onClose={() => setIsPillScannerOpen(false)}
         onDoseConfirmed={handleScannerDoseConfirmed}
         prescribedMeds={plan.meds}
+        persona={activePersona}
       />
     </div>
   );

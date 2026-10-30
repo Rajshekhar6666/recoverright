@@ -16,13 +16,12 @@ export const useSearch = () => useContext(SearchCtx);
 
 function Nav({ path }: { path: string }) {
   const hp = useHelp();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const waiting = hp.summary?.unacked ?? 0;
 
   const NAV = [
-    { href: "/staff", label: t.navPatients, icon: Icon.grid, active: (p: string) => p === "/staff" || p.startsWith("/staff/runs") },
+    { href: "/staff", label: t.navPatients, icon: Icon.grid, active: (p: string) => p === "/staff" || p.startsWith("/staff/runs") || p.startsWith("/staff/patients") },
     { href: "/staff/upload", label: t.newDischarge, icon: Icon.upload, active: (p: string) => p.startsWith("/staff/upload") },
-    { href: "/staff/patients", label: t.navPatients, icon: Icon.users, active: (p: string) => p.startsWith("/staff/patients") },
     { href: "/staff/help", label: t.navHelpInbox, icon: Icon.bell, active: (p: string) => p.startsWith("/staff/help"), badge: true },
   ];
 
@@ -101,7 +100,9 @@ function ShellInner({ children }: { children: ReactNode }) {
     <div className="rr">
       <aside className="rr-side">
         <Link href="/staff" className="rr-brand">
-          <span className="rr-brand-mark"><Icon.heart size={19} /></span>
+          <span className="rr-brand-mark">
+            <img src="/logo.png" alt="RecoverRight" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "contain" }} />
+          </span>
           <span>
             <b>RecoverRight</b>
             <small>{lang === "hi" ? "डिस्चार्ज से स्वास्थ्य लाभ तक" : "From discharge to recovery"}</small>

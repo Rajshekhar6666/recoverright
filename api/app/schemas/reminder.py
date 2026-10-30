@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 DeliveryChannelType = Literal["in_app", "sms", "whatsapp", "voice"]
-ReminderStatus = Literal["scheduled", "attempted", "delivered", "failed", "acknowledged", "snoozed", "cancelled"]
+ReminderStatus = Literal["scheduled", "attempted", "delivered", "failed", "acknowledged", "snoozed", "cancelled", "missed"]
 
 
 class DeliveryResult(BaseModel):

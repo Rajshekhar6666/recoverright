@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/staff/icons";
@@ -10,6 +10,8 @@ export default function CaregiverPortal({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState("");
+  const [careMsgText, setCareMsgText] = useState("");
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   const loadData = async () => {
     try {
@@ -91,6 +93,20 @@ export default function CaregiverPortal({ token }: { token: string }) {
       await loadData();
     } catch {
       setActionMsg("Failed to dispatch test notification.");
+    }
+  };
+
+  const handleSendCareMessage = async (textToSend: string, emoji: string = "❤️") => {
+    if (!data?.run_id || !textToSend.trim()) return;
+    setSendingMsg(true);
+    try {
+      await api.sendCareMessage(data.run_id, data.caregiver_name || "Family", textToSend, textToSend, emoji);
+      setActionMsg(`Care message delivered to ${data.patient_name || "patient"}! It will show up on their home screen.`);
+      setCareMsgText("");
+    } catch {
+      setActionMsg("Failed to deliver care message.");
+    } finally {
+      setSendingMsg(false);
     }
   };
 
@@ -318,6 +334,62 @@ export default function CaregiverPortal({ token }: { token: string }) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Send Love & Encouragement Care Message */}
+      <div className="pt-card" style={{ marginBottom: 20 }}>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>💌 Send Love & Encouragement to {data.patient_name || "Patient"}</h3>
+        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 12px" }}>
+          Your message will appear prominently on their RecoverRight mobile home screen banner to boost their spirits!
+        </p>
+
+        {/* Quick presets */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+          {[
+            { label: "❤️ Proud of you! Keep going!", emoji: "❤️", text: "Proud of you! Keep resting and taking your medicines. Love you!" },
+            { label: "💪 You're doing great!", emoji: "💪", text: "You're getting stronger every day! Keep it up!" },
+            { label: "🌸 जल्दी ठीक हो जाओ", emoji: "🌸", text: "हम सब आपके साथ हैं, आराम करो और जल्दी ठीक हो जाओ!" },
+            { label: "🥣 Did you eat soup?", emoji: "🥣", text: "Have some warm soup or water and rest well today!" },
+          ].map((preset, idx) => (
+            <button
+              key={idx}
+              className="pt-btn pt-btn--sm pt-btn--outline"
+              onClick={() => handleSendCareMessage(preset.text, preset.emoji)}
+              disabled={sendingMsg}
+              style={{ fontSize: 12, padding: "4px 10px" }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom message input */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={careMsgText}
+            onChange={(e) => setCareMsgText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSendCareMessage(careMsgText, "❤️");
+            }}
+            placeholder={`Write a personal message to ${data.patient_name || "the patient"}...`}
+            style={{
+              flex: 1,
+              padding: "8px 12px",
+              border: "1px solid #cbd5e1",
+              borderRadius: 6,
+              fontSize: 13,
+            }}
+          />
+          <button
+            className="pt-btn pt-btn--sm"
+            onClick={() => handleSendCareMessage(careMsgText, "❤️")}
+            disabled={sendingMsg || !careMsgText.trim()}
+            style={{ fontSize: 13, padding: "8px 16px" }}
+          >
+            {sendingMsg ? "Sending..." : "Send Message"}
+          </button>
+        </div>
       </div>
 
       {/* Family Notifications History & Testing */}

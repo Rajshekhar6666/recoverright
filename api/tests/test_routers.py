@@ -11,8 +11,14 @@ from pathlib import Path
 API = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(API))
 
+_ORIGINAL_MODULES = {}
+
 
 def install_stubs(runs_dir: Path):
+    global _ORIGINAL_MODULES
+    for k in ("fastapi", "pydantic", "app.services.storage", "app.routers.help", "app.routers.patients"):
+        if k in sys.modules and k not in _ORIGINAL_MODULES:
+            _ORIGINAL_MODULES[k] = sys.modules[k]
     fa = types.ModuleType("fastapi")
 
     class HTTPException(Exception):
@@ -23,8 +29,12 @@ def install_stubs(runs_dir: Path):
         def __init__(self, **kw): pass
         def get(self, *a, **k): return lambda f: f
         def post(self, *a, **k): return lambda f: f
+        def put(self, *a, **k): return lambda f: f
+        def delete(self, *a, **k): return lambda f: f
 
     fa.HTTPException, fa.APIRouter, fa.Query = HTTPException, APIRouter, (lambda default=None, **k: default)
+    fa.File = fa.Form = (lambda *a, **k: None)
+    fa.UploadFile = object
     pd = types.ModuleType("pydantic")
 
     class BaseModel:
@@ -142,6 +152,12 @@ class TestRouters(unittest.TestCase):
         self.assertEqual(self.status_of(self.patients.get_patient, "nope"), 404)
         self.assertEqual(self.status_of(self.patients.get_patient, "../run_a"), 404)
         json.dumps(d)
+
+    @classmethod
+    def tearDownClass(cls):
+        global _ORIGINAL_MODULES
+        for k, v in _ORIGINAL_MODULES.items():
+            sys.modules[k] = v
 
 
 if __name__ == "__main__":

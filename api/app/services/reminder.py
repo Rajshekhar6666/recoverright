@@ -109,11 +109,21 @@ class SimulatedSMSChannel(BaseDeliveryChannel):
                 timestamp=now_iso,
             )
 
-        msg_body = f"RecoverRight: Time to take {job.medication_name} ({job.dose or 'as directed'}). Scheduled for {job.scheduled_time}."
+        meta = store.read(job.run_id, "meta.json") if store.has(job.run_id, "meta.json") else {}
+        p_info = meta.get("patient") or {}
+        p_name = p_info.get("name", "Patient")
+        is_cg = (p_info.get("caregiver_first") or False) or (recipient == p_info.get("guardian_phone") and bool(recipient))
+
+        if is_cg:
+            msg_body = f"RecoverRight [Caregiver Alert for {p_name}]: Time to administer {job.medication_name} ({job.dose or 'as directed'}). Scheduled for {job.scheduled_time}."
+        else:
+            msg_body = f"RecoverRight: Time to take {job.medication_name} ({job.dose or 'as directed'}). Scheduled for {job.scheduled_time}."
+
         bus.emit(job.run_id, Stage.REMINDER, "reminder.sms_sent", {
             "job_id": job.job_id,
             "recipient": recipient,
             "text": msg_body,
+            "caregiver_first": is_cg,
         })
         return DeliveryResult(
             success=True,
@@ -285,7 +295,14 @@ def trigger_reminder(
         job = ReminderJob.model_validate(target_dict)
         meta = store.read(run_id, "meta.json") if store.has(run_id, "meta.json") else {}
         patient_info = meta.get("patient") or {}
-        recipient = patient_info.get("phone") or "+91 00000 00000"
+
+        # Gap 7 & 11: Caregiver-first delivery mode routing
+        caregiver_first = patient_info.get("caregiver_first", False)
+        caregiver_phone = patient_info.get("guardian_phone") or (patient_info.get("caregiver_profile") or {}).get("phone")
+        if caregiver_first and caregiver_phone:
+            recipient = caregiver_phone
+        else:
+            recipient = patient_info.get("phone") or "+91 00000 00000"
 
         channel_type = channel_override or job.channel
         channel = registry.get(channel_type)

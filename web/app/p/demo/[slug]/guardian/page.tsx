@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 function GuardianRedirect({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   redirect(`/p/${slug.toLowerCase()}/guardian`);
+  return null;
 }
 
 export default function DemoSlugGuardianPage({ params }: { params: Promise<{ slug: string }> }) {

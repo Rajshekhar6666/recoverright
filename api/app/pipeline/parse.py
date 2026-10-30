@@ -108,6 +108,47 @@ def _iter_pdf(path: Path) -> Iterator[dict]:
                 yield raw
 
 
+def _ocr_pdf(path: Path) -> list[dict]:
+    """OCR fallback for image-only/scanned PDFs using pdfplumber page rasterization and pytesseract."""
+    entries: list[dict] = []
+    try:
+        import pytesseract
+        import shutil
+
+        # Discover tesseract binary on host or standard installation paths
+        if not shutil.which("tesseract"):
+            for cand in [
+                Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
+                Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+                Path(r"/usr/bin/tesseract"),
+                Path(r"/usr/local/bin/tesseract"),
+            ]:
+                if cand.exists():
+                    pytesseract.pytesseract.tesseract_cmd = str(cand)
+                    break
+
+        with pdfplumber.open(str(path)) as pdf:
+            for page_no, page in enumerate(pdf.pages, 1):
+                try:
+                    img = page.to_image(resolution=150).original
+                    text = pytesseract.image_to_string(img)
+                    for line in text.splitlines():
+                        cleaned = _clean(line)
+                        if not cleaned:
+                            continue
+                        if re.match(r"^([-*\u2022]|\d+[.)])\s+", cleaned):
+                            entries.append(_raw("list_item", cleaned, page_no))
+                        elif len(cleaned) <= 60 and not re.search(r"[.!?\u0964\u3002]$", cleaned):
+                            entries.append(_raw("heading", cleaned, page_no))
+                        else:
+                            entries.append(_raw("paragraph", cleaned, page_no))
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return entries
+
+
 def parse_document(path: str | Path, run_id: Optional[str] = None) -> SourceDocument:
     path = Path(path)
 
@@ -121,6 +162,9 @@ def parse_document(path: str | Path, run_id: Optional[str] = None) -> SourceDocu
         raw = list(_iter_docx(path))
     elif ext == ".pdf":
         raw = list(_iter_pdf(path))
+        if not raw:
+            emit("parse.ocr", {"message": "No embedded digital text found; invoking OCR engine on scanned PDF."})
+            raw = _ocr_pdf(path)
     else:
         emit("parse.failed", {"reason": f"unsupported file type {ext}"})
         raise ValueError(f"Unsupported file type: {ext} (use .docx or .pdf)")

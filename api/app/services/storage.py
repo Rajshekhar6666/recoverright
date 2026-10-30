@@ -147,6 +147,32 @@ class RunStore:
                 continue
         return sorted(metas, key=lambda m: m.get("created_at", ""), reverse=True)
 
+    def delete_run(self, run_id: str) -> bool:
+        """Deletes a run folder and cleans up associated tokens."""
+        import shutil
+        target = self.dir(run_id)
+        if not target.exists():
+            return False
+        shutil.rmtree(target, ignore_errors=True)
+        with self._global_lock:
+            p = token_index_path()
+            if p.exists():
+                try:
+                    tokens = json.loads(p.read_text(encoding="utf-8"))
+                    new_tokens = {k: v for k, v in tokens.items() if v != run_id}
+                    p.write_text(json.dumps(new_tokens, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+            cp = caregiver_token_index_path()
+            if cp.exists():
+                try:
+                    c_tokens = json.loads(cp.read_text(encoding="utf-8"))
+                    new_c_tokens = {k: v for k, v in c_tokens.items() if v != run_id}
+                    cp.write_text(json.dumps(new_c_tokens, indent=2), encoding="utf-8")
+                except Exception:
+                    pass
+        return True
+
     # -------------------------------------------------- Patient Token Mapping
     def generate_patient_slug(self, name: str) -> str:
         """Generates a clean, unique URL slug for a patient name (e.g. 'Neha Verma' -> 'neha-verma')."""
@@ -516,6 +542,60 @@ class RunStore:
         if self.has(run_id, "call_history.json"):
             try:
                 return self.read(run_id, "call_history.json")
+            except (OSError, json.JSONDecodeError):
+                return []
+        return []
+
+    # ── Gap 4: Reviewer Decision Latency Tracking ──────────────────────────
+    def record_review_timing(self, run_id: str, field_id: str, actor: str,
+                             action: str, decision_seconds: float) -> None:
+        """Record how long a reviewer spent before deciding on a field.
+
+        A very short decision time (< 5 seconds) is flagged as a potential
+        'fast-review' that may indicate rubber-stamping without reading the
+        source quote. The flag is surfaced in the analytics dashboard only;
+        it does not block approval.
+
+        Args:
+            run_id: The clinical run identifier.
+            field_id: The field that was decided.
+            actor: Reviewer identity.
+            action: confirm | edit | reject
+            decision_seconds: Elapsed seconds from when the review screen was
+                              last loaded (or last field was decided) to this
+                              decision. Measured client-side and submitted with
+                              the field action.
+        """
+        FAST_REVIEW_THRESHOLD_SECONDS = 5.0
+
+        timing = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "field_id": field_id,
+            "actor": actor,
+            "action": action,
+            "decision_seconds": round(decision_seconds, 2),
+            "fast_review_flag": decision_seconds < FAST_REVIEW_THRESHOLD_SECONDS,
+        }
+        with self.lock(run_id):
+            existing: list[dict] = []
+            if self.has(run_id, "review_timings.json"):
+                try:
+                    existing = self.read(run_id, "review_timings.json")
+                except (OSError, json.JSONDecodeError):
+                    existing = []
+            existing.append(timing)
+            self.write(run_id, "review_timings.json", existing)
+
+        if timing["fast_review_flag"]:
+            self.audit(run_id, actor, "review.fast_decision_flagged",
+                       field_id=field_id, seconds=round(decision_seconds, 2),
+                       note="Decision under 5 s – possible rubber-stamp; verify source quote was read")
+
+    def get_review_timings(self, run_id: str) -> list[dict]:
+        """Retrieve all reviewer decision timing records for a run."""
+        if self.has(run_id, "review_timings.json"):
+            try:
+                return self.read(run_id, "review_timings.json")
             except (OSError, json.JSONDecodeError):
                 return []
         return []

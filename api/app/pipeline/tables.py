@@ -40,28 +40,49 @@ def detect_header(cells: list[str]) -> Optional[dict[int, str]]:
 
 
 def table_headers(doc: SourceDocument) -> dict[str, tuple[dict[int, str], int]]:
-    """{table_id: ({column_index: canonical_name}, column_count)} for tables that have a header row."""
+    """{table_id: ({column_index: canonical_name}, column_count)} for tables that have a header row
+    or inherit from a split continuation table."""
     out: dict[str, tuple[dict[int, str], int]] = {}
+    last_h: Optional[tuple[dict[int, str], int]] = None
     for b in doc.blocks:
         if b.type == "table_row" and b.cells and b.row_index == 0:
             hm = detect_header(b.cells)
             if hm:
                 out[b.table_id] = (hm, len(b.cells))
+                last_h = (hm, len(b.cells))
+            elif last_h and len(b.cells) == last_h[1]:
+                out[b.table_id] = last_h
     return out
 
 
 def table_medications(doc: SourceDocument) -> list[Medication]:
-    """Read medication tables by header, with no AI. Misaligned rows are skipped, never guessed."""
+    """Read medication tables by header, with no AI. Misaligned rows are skipped, never guessed.
+
+    Gap 16 fix: Handles tables split across pages where continuation tables do not repeat
+    the header row. If a new table's row 0 matches the column count of the previous
+    medication table and has no conflicting header, it inherits the column mapping and
+    row 0 is processed as an active data row.
+    """
     headers: dict[str, tuple[dict[int, str], int]] = {}
     meds: list[Medication] = []
+    last_header: Optional[tuple[dict[int, str], int]] = None
+
     for b in doc.blocks:
         if b.type != "table_row" or not b.cells:
             continue
+
         if b.row_index == 0:
             hm = detect_header(b.cells)
             if hm and "name" in hm.values() and MED_COLS & set(hm.values()):
                 headers[b.table_id] = (hm, len(b.cells))
-            continue
+                last_header = (hm, len(b.cells))
+                continue
+            elif last_header and len(b.cells) == last_header[1] and not hm:
+                # Continuation table across page split: inherit header mapping and process row 0 as data
+                headers[b.table_id] = last_header
+            else:
+                continue
+
         found = headers.get(b.table_id)
         if not found:
             continue

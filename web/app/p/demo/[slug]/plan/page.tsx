@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 function PlanRedirect({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   redirect(`/p/${slug.toLowerCase()}/plan`);
+  return null;
 }
 
 export default function DemoSlugPlanPage({ params }: { params: Promise<{ slug: string }> }) {

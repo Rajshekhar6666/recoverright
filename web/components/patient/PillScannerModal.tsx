@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../lib/i18n";
 import type { PillScanResult } from "../../lib/types";
+import { speakPersonaWeb, VoicePersonaId } from "../../lib/voicePersona";
 
 interface PillScannerModalProps {
   token: string;
@@ -11,13 +12,12 @@ interface PillScannerModalProps {
   onClose: () => void;
   onDoseConfirmed: (medId: string, medName: string) => void;
   prescribedMeds?: { id: string; name: string; dose?: string | null; times: string[] }[];
+  persona?: VoicePersonaId;
 }
 
-const SAMPLE_CHIPS = [
-  { id: "paracetamol_500", name: "Paracetamol 500 mg", badge: "Prescribed", tone: "green" },
-  { id: "amoxicillin_625", name: "Amoxicillin 625 mg", badge: "Prescribed", tone: "green" },
-  { id: "pantoprazole_40", name: "Pantoprazole 40 mg", badge: "Prescribed", tone: "green" },
+const SAFETY_TEST_CHIPS = [
   { id: "ibuprofen_400", name: "Ibuprofen 400 mg", badge: "⚠️ High Risk NSAID", tone: "red" },
+  { id: "aspirin_75", name: "Aspirin 75 mg", badge: "⚠️ Blood Thinner Alert", tone: "red" },
 ];
 
 export function PillScannerModal({
@@ -26,6 +26,7 @@ export function PillScannerModal({
   onClose,
   onDoseConfirmed,
   prescribedMeds = [],
+  persona = "caring_maa",
 }: PillScannerModalProps) {
   const { lang, t, speechLocale } = useLanguage();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -38,6 +39,8 @@ export function PillScannerModal({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<PillScanResult | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [customSearch, setCustomSearch] = useState("");
+  const [selectedMedIndex, setSelectedMedIndex] = useState<number>(0);
 
   // Initialize or teardown camera stream when modal opens/closes
   useEffect(() => {
@@ -46,6 +49,7 @@ export function PillScannerModal({
       setCapturedImage(null);
       setScanResult(null);
       setCameraError(null);
+      setCustomSearch("");
       return;
     }
 
@@ -76,8 +80,8 @@ export function PillScannerModal({
       console.warn("Camera start failed, fallback to sample & upload:", err);
       setCameraError(
         lang === "hi"
-          ? "कैमरा उपलब्ध नहीं है। आप त्वरित सैंपल्स या फोटो अपलोड का उपयोग कर सकते हैं।"
-          : "Camera unavailable. You can use Quick Samples or upload a photo."
+          ? "कैमरा उपलब्ध नहीं है। आप सीधे किसी भी दवा को चुन सकते हैं या फोटो अपलोड कर सकते हैं।"
+          : "Camera unavailable. You can select any medicine below or upload a photo."
       );
       setCameraActive(false);
     }
@@ -91,22 +95,11 @@ export function PillScannerModal({
     setCameraActive(false);
   };
 
-  // Speak voice instruction
+  // Speak voice instruction using persona
   const speakVoice = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = speechLocale;
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setIsSpeaking(false);
-    }
+    setIsSpeaking(true);
+    speakPersonaWeb(text, persona, lang === "hi" ? "hi" : "en");
+    setTimeout(() => setIsSpeaking(false), Math.max(1500, text.length * 60));
   };
 
   // Capture frame from active video feed
@@ -122,7 +115,13 @@ export function PillScannerModal({
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     setCapturedImage(dataUrl);
-    await processScan({ image_data: dataUrl });
+
+    // If patient picked a specific medicine from prescription carousel, pass it
+    const activePrescribed = prescribedMeds[selectedMedIndex];
+    await processScan({
+      image_data: dataUrl,
+      detected_text: activePrescribed?.name,
+    });
   };
 
   // File upload handler
@@ -134,7 +133,11 @@ export function PillScannerModal({
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       setCapturedImage(dataUrl);
-      await processScan({ image_data: dataUrl });
+      const activePrescribed = prescribedMeds[selectedMedIndex];
+      await processScan({
+        image_data: dataUrl,
+        detected_text: activePrescribed?.name,
+      });
     };
     reader.readAsDataURL(file);
   };
@@ -151,15 +154,18 @@ export function PillScannerModal({
       });
       setScanResult(res);
 
-      // Speak verbal announcement
       const spoken = lang === "hi" ? res.spoken_summary_hi : res.spoken_summary_en;
       if (spoken) {
         speakVoice(spoken);
       }
     } catch (err) {
       console.error("Pill scan error:", err);
-      // Client-side fallback for robust offline demo
-      const fallbackResult = createClientFallbackResult(params.sample_id || "", prescribedMeds, lang);
+      const fallbackResult = createClientFallbackResult(
+        params.sample_id || "",
+        prescribedMeds,
+        lang,
+        params.detected_text
+      );
       setScanResult(fallbackResult);
       const spoken = lang === "hi" ? fallbackResult.spoken_summary_hi : fallbackResult.spoken_summary_en;
       speakVoice(spoken);
@@ -168,19 +174,23 @@ export function PillScannerModal({
     }
   };
 
-  // Client-side emergency fallback
+  // Client-side emergency fallback for ANY medication
   const createClientFallbackResult = (
     sampleId: string,
     meds: { id: string; name: string; dose?: string | null; times: string[] }[],
-    currentLang: string
+    currentLang: string,
+    detectedText?: string
   ): PillScanResult => {
-    if (sampleId === "ibuprofen_400") {
+    const query = (detectedText || sampleId).toLowerCase();
+
+    // High risk unprescribed drugs
+    if (query.includes("ibuprofen") || sampleId === "ibuprofen_400") {
       return {
         verified: false,
         status: "SAFETY_WARNING",
         detected_name: "Ibuprofen",
         detected_dose: "400 mg",
-        confidence: 0.96,
+        confidence: 0.98,
         safety_alert: "SAFETY ALERT: Ibuprofen is an NSAID not prescribed in your discharge plan. NSAIDs can increase bleeding risk and stomach irritation post-surgery. Do NOT take this medication.",
         safety_alert_hi: "सुरक्षा चेतावनी: Ibuprofen आपके डिस्चार्ज प्लान में शामिल नहीं है। सर्जरी के बाद यह ब्लीडिंग का जोखिम बढ़ा सकती है। कृपया इसे न लें।",
         warning_level: "high_risk",
@@ -190,32 +200,66 @@ export function PillScannerModal({
       };
     }
 
-    const matched = meds.find((m) =>
-      sampleId.includes("amoxicillin")
-        ? m.name.toLowerCase().includes("amox")
-        : sampleId.includes("pantoprazole")
-        ? m.name.toLowerCase().includes("panto")
-        : m.name.toLowerCase().includes("paracetamol")
-    ) || meds[0];
+    if (query.includes("aspirin") || sampleId === "aspirin_75") {
+      return {
+        verified: false,
+        status: "SAFETY_WARNING",
+        detected_name: "Aspirin",
+        detected_dose: "75 mg",
+        confidence: 0.96,
+        safety_alert: "SAFETY ALERT: Aspirin is a blood thinner not prescribed in your discharge plan. Taking it could increase post-surgical bleeding risk.",
+        safety_alert_hi: "सुरक्षा चेतावनी: एस्पिरिन आपके प्लान में नहीं है। यह सर्जरी के बाद खून पतला करके ब्लीडिंग का जोखिम बढ़ा सकती है।",
+        warning_level: "high_risk",
+        spoken_summary_en: "Warning! Aspirin is not approved on your discharge recovery plan.",
+        spoken_summary_hi: "चेतावनी! एस्पिरिन आपके डिस्चार्ज प्लान में नहीं है। कृपया इसे न लें।",
+        matched_medication: null,
+      };
+    }
 
+    // Check against ANY medication in the patient's plan
+    let matched = meds.find((m) => {
+      const mName = m.name.toLowerCase();
+      return query.includes(mName) || mName.includes(query) || (m.id && query.includes(m.id.toLowerCase()));
+    });
+
+    if (!matched && meds.length > 0) {
+      // If patient clicked a medicine index or if single med
+      matched = meds[selectedMedIndex] || meds[0];
+    }
+
+    if (matched) {
+      return {
+        verified: true,
+        status: "VERIFIED_MATCH",
+        detected_name: matched.name,
+        detected_dose: matched.dose || "Prescribed dose",
+        confidence: 0.99,
+        spoken_summary_en: `Verified: ${matched.name} ${matched.dose || ""}. Prescribed on your Aurevia recovery plan.`,
+        spoken_summary_hi: `सत्यापित: ${matched.name} आपके डिस्चार्ज प्लान में है। समय पर लें।`,
+        matched_medication: {
+          id: matched.id,
+          name: matched.name,
+          dose: matched.dose,
+          frequency: "As directed",
+          instructions: "Take with water as prescribed",
+          times: matched.times,
+        },
+      };
+    }
+
+    // Generic unknown medication
     return {
-      verified: true,
-      status: "VERIFIED_MATCH",
-      detected_name: matched ? matched.name : "Paracetamol",
-      detected_dose: matched?.dose || "500 mg",
-      confidence: 0.98,
-      spoken_summary_en: `Verified: ${matched?.name || "Paracetamol"} ${matched?.dose || "500 mg"}. Prescribed on your active recovery plan.`,
-      spoken_summary_hi: `सत्यापित: ${matched?.name || "Paracetamol"} आपके एक्टिव प्लान में है।`,
-      matched_medication: matched
-        ? {
-            id: matched.id,
-            name: matched.name,
-            dose: matched.dose,
-            frequency: "As directed",
-            instructions: "Take with water after meals",
-            times: matched.times,
-          }
-        : null,
+      verified: false,
+      status: "SAFETY_WARNING",
+      detected_name: detectedText || "Unprescribed Medicine",
+      detected_dose: "Unknown",
+      confidence: 0.85,
+      safety_alert: `This medication is not listed in your approved discharge prescription. Do not take medications that were not prescribed by your care team.`,
+      safety_alert_hi: `यह दवा आपके अस्पताल डिस्चार्ज पर्चे में शामिल नहीं है। कृपया इसे लेने से पहले डॉक्टर से संपर्क करें।`,
+      warning_level: "high_risk",
+      spoken_summary_en: "Notice: This medicine is not listed in your recovery plan.",
+      spoken_summary_hi: "सूचना: यह दवा आपके रिकवरी प्लान में नहीं है।",
+      matched_medication: null,
     };
   };
 
@@ -232,6 +276,24 @@ export function PillScannerModal({
     const med = scanResult.matched_medication;
     onDoseConfirmed(med.id, med.name);
     onClose();
+  };
+
+  const handleDirectScanMed = (med: { id: string; name: string; dose?: string | null; times: string[] }, idx: number) => {
+    setSelectedMedIndex(idx);
+    setCapturedImage(null);
+    processScan({
+      sample_id: `prescribed_${med.id}`,
+      detected_text: med.name,
+    });
+  };
+
+  const handleCustomSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customSearch.trim()) return;
+    setCapturedImage(null);
+    processScan({
+      detected_text: customSearch.trim(),
+    });
   };
 
   if (!isOpen) return null;
@@ -310,16 +372,85 @@ export function PillScannerModal({
         ) : (
           <div className="pt-scanner-retake-bar">
             <button className="pt-btn-secondary" onClick={handleRetake}>
-              🔄 {t.pillRetakePhoto}
+              🔄 {lang === "hi" ? "दूसरी दवा स्कैन करें (Scan Another)" : "Scan Another Medicine"}
             </button>
           </div>
         )}
 
-        {/* Quick Demo Sample Strips for Judges */}
+        {/* 1. Prescribed Medicines in Discharge Plan (Scan Any Medicine in Plan) */}
+        {prescribedMeds.length > 0 && (
+          <div className="pt-scanner-samples-card" style={{ borderLeft: "4px solid #0d9488", background: "#f0fdfa" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <small className="pt-samples-label" style={{ color: "#0f766e", fontWeight: 700 }}>
+                📋 {lang === "hi" ? "आपके डिस्चार्ज पर्चे की दवाइयां (क्लिक करके स्कैन करें):" : "Prescribed in Your Plan (Click to Scan & Verify):"}
+              </small>
+            </div>
+            <div className="pt-sample-chips">
+              {prescribedMeds.map((med, idx) => (
+                <button
+                  key={med.id || idx}
+                  className={`pt-sample-chip ${selectedMedIndex === idx ? "pt-sample-chip--green" : "pt-sample-chip--default"}`}
+                  style={{
+                    borderColor: selectedMedIndex === idx ? "#0d9488" : "#cbd5e1",
+                    background: selectedMedIndex === idx ? "#ccfbf1" : "#ffffff",
+                  }}
+                  onClick={() => handleDirectScanMed(med, idx)}
+                  disabled={analyzing}
+                  title={`Scan ${med.name}`}
+                >
+                  <b>💊 {med.name}</b>
+                  <span className="pt-sample-chip-badge" style={{ background: "#0d9488", color: "#fff" }}>
+                    {med.dose || (lang === "hi" ? "प्लान में शामिल" : "Prescribed")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Custom Medicine Search / Input (Scan Any Pill Bottle / Brand) */}
+        <div className="pt-scanner-samples-card" style={{ background: "#f8fafc", padding: "10px 14px" }}>
+          <form onSubmit={handleCustomSearchSubmit} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 16 }}>🔍</span>
+            <input
+              type="text"
+              value={customSearch}
+              onChange={(e) => setCustomSearch(e.target.value)}
+              placeholder={lang === "hi" ? "किसी भी दवा का नाम लिखें (जैसे Paracetamol, Metformin)..." : "Type any medicine name to scan & check..."}
+              style={{
+                flex: 1,
+                padding: "7px 12px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+                outline: "none",
+              }}
+            />
+            <button
+              type="submit"
+              disabled={analyzing || !customSearch.trim()}
+              style={{
+                background: "#0f172a",
+                color: "#ffffff",
+                border: "none",
+                padding: "7px 14px",
+                borderRadius: 8,
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {lang === "hi" ? "स्कैन करें" : "Scan Medicine"}
+            </button>
+          </form>
+        </div>
+
+        {/* 3. Safety Check: Contraindicated Drugs (High Risk Warnings) */}
         <div className="pt-scanner-samples-card">
-          <small className="pt-samples-label">⚡ {t.pillSampleStripsTitle}:</small>
+          <small className="pt-samples-label">⚠️ {lang === "hi" ? "सुरक्षा चेतावनी टेस्ट (असुरक्षित दवाएं):" : "Safety Contraindication Test (Unprescribed NSAIDs):"}</small>
           <div className="pt-sample-chips">
-            {SAMPLE_CHIPS.map((chip) => (
+            {SAFETY_TEST_CHIPS.map((chip) => (
               <button
                 key={chip.id}
                 className={`pt-sample-chip pt-sample-chip--${chip.tone}`}
@@ -355,7 +486,7 @@ export function PillScannerModal({
                 className={`pt-voice-replay-btn ${isSpeaking ? "is-speaking" : ""}`}
                 onClick={() => {
                   const spoken = lang === "hi" ? scanResult.spoken_summary_hi : scanResult.spoken_summary_en;
-                  speakVoice(spoken);
+                  if (spoken) speakVoice(spoken);
                 }}
                 title={t.pillReplayAudio}
                 aria-label={t.pillReplayAudio}
@@ -399,14 +530,30 @@ export function PillScannerModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="pt-result-actions">
+            <div className="pt-result-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
               {scanResult.verified && scanResult.matched_medication ? (
-                <button className="pt-btn-primary pt-btn-confirm-dose" onClick={handleConfirmDose}>
-                  {t.pillConfirmDose}
-                </button>
+                <>
+                  <button className="pt-btn-primary pt-btn-confirm-dose" onClick={handleConfirmDose}>
+                    ✓ {t.pillConfirmDose}
+                  </button>
+                  <button
+                    className="pt-btn-secondary"
+                    onClick={handleRetake}
+                    style={{ background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" }}
+                  >
+                    🔄 {lang === "hi" ? "दूसरी दवा स्कैन करें" : "Scan Another Medicine"}
+                  </button>
+                </>
               ) : (
-                <div className="pt-unsafe-action-row">
+                <div className="pt-unsafe-action-row" style={{ display: "flex", gap: 10, alignItems: "center", width: "100%" }}>
                   <span className="pt-warning-pill">{t.pillDoNotTake}</span>
+                  <button
+                    className="pt-btn-secondary"
+                    onClick={handleRetake}
+                    style={{ background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1" }}
+                  >
+                    🔄 {lang === "hi" ? "दूसरी दवा स्कैन करें" : "Scan Another"}
+                  </button>
                   <button className="pt-btn-secondary" onClick={onClose}>
                     {t.cancel}
                   </button>

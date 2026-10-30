@@ -49,7 +49,7 @@ class TestPhase2StaffWorkflow(unittest.TestCase):
         }
         store.write(run_id, "meta.json", meta)
         store.register_patient_token(pat_token, run_id)
-        # 1 agreed non-critical field (no blockers)
+        # Agreed non-critical fields covering all required categories (no blockers)
         items = [
             {
                 "field": {
@@ -66,7 +66,55 @@ class TestPhase2StaffWorkflow(unittest.TestCase):
                     "issues": [],
                 },
                 "decision": None,
-            }
+            },
+            {
+                "field": {
+                    "field_id": "fu1",
+                    "category": "follow_ups",
+                    "status": "agreed",
+                    "critical": False,
+                    "proposed": {"what": "Checkup", "when": "in 1 week"},
+                    "block_id": "b2",
+                    "quote": "Follow up in 1 week",
+                    "units": ["u2"],
+                    "voters": ["A", "B"],
+                    "opinions": [],
+                    "issues": [],
+                },
+                "decision": None,
+            },
+            {
+                "field": {
+                    "field_id": "ws1",
+                    "category": "warning_signs",
+                    "status": "agreed",
+                    "critical": False,
+                    "proposed": {"text": "High fever"},
+                    "block_id": "b3",
+                    "quote": "Call if fever",
+                    "units": ["u3"],
+                    "voters": ["A", "B"],
+                    "opinions": [],
+                    "issues": [],
+                },
+                "decision": None,
+            },
+            {
+                "field": {
+                    "field_id": "c1",
+                    "category": "contacts",
+                    "status": "agreed",
+                    "critical": False,
+                    "proposed": {"label": "Helpline", "value": "108"},
+                    "block_id": "b4",
+                    "quote": "Helpline 108",
+                    "units": ["u4"],
+                    "voters": ["A", "B"],
+                    "opinions": [],
+                    "issues": [],
+                },
+                "decision": None,
+            },
         ]
         store.write(run_id, "review.json", items)
         return pat_token

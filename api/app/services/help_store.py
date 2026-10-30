@@ -40,7 +40,7 @@ def _help_dir_default() -> Path:
 
 
 SEVERITIES = ("critical", "concern")
-SOURCES = ("voice", "button", "test")
+SOURCES = ("voice", "button", "test", "teach_back", "glucose_monitor", "affordability_check")
 STATUSES = ("open", "acknowledged", "escalated", "resolved")
 ACTIVE = ("open", "acknowledged", "escalated")
 ACTIONS = ("acknowledge", "call", "escalate", "resolve", "note")
@@ -227,6 +227,31 @@ class HelpStore:
         if i["status"] == "resolved":
             return (3, 0, -(_parse(i.get("resolved_at")) or datetime.min.replace(tzinfo=timezone.utc)).timestamp())
         return (_STATUS_RANK[i["status"]], _SEV_RANK[i["severity"]], (_parse(i["created_at"]) or datetime.min.replace(tzinfo=timezone.utc)).timestamp())
+
+    def update_status(self, request_id: str, new_status: str) -> dict:
+        """Update the status of a help request by its id.
+
+        Used by the scheduler's critical-escalation loop (Gap 12) to
+        mark unacknowledged critical requests as 'escalated' without going
+        through the full act() state-machine (which requires an actor/resolution).
+        """
+        if new_status not in STATUSES:
+            raise HelpError(422, f"new_status must be one of {STATUSES}")
+        with self._lock:
+            item = self.get(request_id)
+            now = _iso(self.now())
+            item["status"] = new_status
+            if new_status == "escalated" and not item.get("escalated_at"):
+                item["escalated_at"] = now
+                item["escalated_by"] = "scheduler"
+                item["timeline"].append({
+                    "at": now,
+                    "actor": "scheduler",
+                    "action": "escalated",
+                    "note": "Auto-escalated by scheduler: critical request unacknowledged >120s",
+                })
+            self._write(item)
+            return item
 
     def summary(self, include_test: bool = True) -> dict:
         items = [i for i in self._read_all() if include_test or i["source"] != "test"]

@@ -75,6 +75,10 @@ export const api = {
   // ---- patient directory
   listPatients: () => fetch(`${API}/patients`, { cache: "no-store" }).then((r) => parse<{ items: PatientRow[] }>(r)),
   getPatient: (id: string) => fetch(`${API}/patients/${encodeURIComponent(id)}`, { cache: "no-store" }).then((r) => parse<PatientDetail>(r)),
+  deletePatient: (id: string) =>
+    fetch(`${API}/patients/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }).then((r) => parse<{ ok: boolean; message: string }>(r)),
 
   registerPatient: (data: {
     name: string; phone?: string; language?: string; guardian_name?: string; guardian_phone?: string;
@@ -195,6 +199,12 @@ export const api = {
   listCaregiverNotifications: (token: string) =>
     fetch(`${API}/caregivers/${encodeURIComponent(token)}/notifications`, { cache: "no-store" })
       .then((r) => parse<CaregiverNotification[]>(r)),
+  sendCareMessage: (runId: string, sender_name: string, text: string, text_hi?: string, emoji?: string) =>
+    fetch(`${API}/wellness/care-messages/${encodeURIComponent(runId)}/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sender_name, text, text_hi: text_hi || text, emoji: emoji || "❤️" }),
+    }).then((r) => parse<any>(r)),
 
   // ---- demo cases (Phase 3)
   listDemoCases: () =>

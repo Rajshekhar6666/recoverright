@@ -54,7 +54,12 @@ export function useSafetyMic(
   const lock = useRef<{ release(): Promise<void> } | null>(null);
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTranscript = useRef("");
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const highPassFilterRef = useRef<BiquadFilterNode | null>(null);
+  const vocalBoostFilterRef = useRef<BiquadFilterNode | null>(null);
   const cb = useRef(onHeard);
   cb.current = onHeard;
   const langRef = useRef(lang);
@@ -68,27 +73,8 @@ export function useSafetyMic(
     } catch { /* not allowed: listening still works while the screen is on */ }
   }, []);
 
-  // Request audio hardware with Auto Gain Control, Noise Suppression & Echo Cancellation
-  const initAudioStream = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
-    try {
-      if (!mediaStream.current || !mediaStream.current.active) {
-        mediaStream.current = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            autoGainControl: true,
-            noiseSuppression: true,
-            echoCancellation: true,
-          },
-        });
-      }
-    } catch (e) {
-      // Permission denied or device unavailable
-      setState("blocked");
-      setStatus("mic_unavailable");
-    }
-  }, []);
-
   const launch = useCallback(() => {
+    if (!want.current) return;
     const w = window as unknown as { SpeechRecognition?: RecCtor; webkitSpeechRecognition?: RecCtor };
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) {
@@ -97,7 +83,18 @@ export function useSafetyMic(
       return;
     }
 
-    void initAudioStream();
+    if (rec.current) {
+      try {
+        rec.current.onstart = null;
+        rec.current.onresult = null;
+        rec.current.onerror = null;
+        rec.current.onend = null;
+        rec.current.abort();
+      } catch {
+        /* ignore */
+      }
+      rec.current = null;
+    }
 
     const r = new Ctor();
     r.continuous = true;
@@ -105,25 +102,13 @@ export function useSafetyMic(
     r.maxAlternatives = 4;
     r.lang = langRef.current;
 
-    const arm = () => {
-      if (watchdog.current) clearTimeout(watchdog.current);
-      // Give a generous 15 second buffer to allow natural spoken pauses without aborting
-      watchdog.current = setTimeout(() => {
-        if (want.current && rec.current === r) {
-          try { r.abort(); } catch { /* ignore */ }
-        }
-      }, 15000);
-    };
-
     r.onstart = () => {
-      if (watchdog.current) clearTimeout(watchdog.current);
       setState("on");
       setStatus("listening");
     };
 
     r.onresult = (e) => {
       setLastHeardAt(Date.now());
-      arm();
       let latestText = "";
       let hasFinal = false;
 
@@ -142,20 +127,24 @@ export function useSafetyMic(
         }
       }
 
-      // If speech is still interim, set a natural 1100ms pause timer to finalize if no further input
+      // If speech is still interim, natural pause timer to finalize
       if (!hasFinal && latestText) {
         if (pauseTimer.current) clearTimeout(pauseTimer.current);
         pauseTimer.current = setTimeout(() => {
           if (lastTranscript.current) {
             setStatus("processing");
             cb.current(lastTranscript.current, true, []);
-            setTimeout(() => setStatus("listening"), 1200);
+            setTimeout(() => {
+              if (want.current) setStatus("listening");
+            }, 1200);
           }
         }, 1200);
       } else if (hasFinal) {
         if (pauseTimer.current) clearTimeout(pauseTimer.current);
         setStatus("processing");
-        setTimeout(() => setStatus("listening"), 1000);
+        setTimeout(() => {
+          if (want.current) setStatus("listening");
+        }, 1000);
       }
     };
 
@@ -164,53 +153,80 @@ export function useSafetyMic(
         want.current = false;
         setState("blocked");
         setStatus("mic_unavailable");
-      } else if (e.error !== "no-speech") {
-        setStatus("error");
+      } else if (e.error === "audio-capture") {
+        // Microphone hardware busy; retry smoothly after brief pause
+        if (want.current) {
+          if (restartTimer.current) clearTimeout(restartTimer.current);
+          restartTimer.current = setTimeout(() => {
+            if (want.current) launch();
+          }, 600);
+        }
+      } else if (e.error === "no-speech" || e.error === "aborted") {
+        // Normal silence timeout in browser; keep listening
+      } else {
+        // Transient error like network; keep want.current true to allow auto-recovery
       }
     };
 
     r.onend = () => {
-      if (want.current && rec.current === r) {
-        // Safe 200ms restart buffer to prevent Chromium InvalidStateError
-        setTimeout(() => {
-          if (want.current && rec.current === r) {
-            try {
-              r.start();
-              arm();
-            } catch {
-              /* already active or recreating */
-            }
+      if (rec.current === r) {
+        rec.current = null;
+      }
+      if (want.current) {
+        // Seamlessly instantiate a fresh SpeechRecognition on silence/end
+        if (restartTimer.current) clearTimeout(restartTimer.current);
+        restartTimer.current = setTimeout(() => {
+          if (want.current) {
+            launch();
           }
         }, 200);
+      } else {
+        setState("off");
+        setStatus("ready");
       }
     };
 
     rec.current = r;
     try {
       r.start();
-      arm();
       void grabLock();
     } catch {
-      setState("blocked");
-      setStatus("mic_unavailable");
+      if (want.current) {
+        if (restartTimer.current) clearTimeout(restartTimer.current);
+        restartTimer.current = setTimeout(() => {
+          if (want.current) launch();
+        }, 500);
+      }
     }
-  }, [grabLock, initAudioStream]);
+  }, [grabLock]);
 
-  const enable = useCallback(() => {
+  const enable = useCallback(async () => {
     try { localStorage.removeItem(KEY); } catch { /* ignore */ }
     want.current = true;
+    setState("starting");
+    setStatus("listening");
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (err) {
+        setState("blocked");
+        setStatus("mic_unavailable");
+        return;
+      }
+    }
     launch();
   }, [launch]);
 
   const disable = useCallback(() => {
     want.current = false;
+    if (restartTimer.current) {
+      clearTimeout(restartTimer.current);
+      restartTimer.current = null;
+    }
     const r = rec.current;
     rec.current = null;
     try { r?.stop(); } catch { /* not running */ }
-    if (mediaStream.current) {
-      mediaStream.current.getTracks().forEach((t) => t.stop());
-      mediaStream.current = null;
-    }
     stopLock();
     setState("off");
     setStatus("ready");
@@ -235,9 +251,14 @@ export function useSafetyMic(
       try { r?.abort(); } catch { /* ignore */ }
       if (watchdog.current) clearTimeout(watchdog.current);
       if (pauseTimer.current) clearTimeout(pauseTimer.current);
+      if (restartTimer.current) clearTimeout(restartTimer.current);
       if (mediaStream.current) {
         mediaStream.current.getTracks().forEach((t) => t.stop());
         mediaStream.current = null;
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
       }
       stopLock();
     };

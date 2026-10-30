@@ -1,8 +1,15 @@
-export default function Page() {
+import { Suspense } from "react";
+import CaregiverPortal from "@/components/caregiver/CaregiverPortal";
+
+async function GuardianView({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  return <CaregiverPortal token={token} />;
+}
+
+export default function Page({ params }: { params: Promise<{ token: string }> }) {
   return (
-    <main style={{ padding: 48, fontFamily: "system-ui", color: "#5d7480" }}>
-      <h1 style={{ color: "#0e2630" }}>Coming next</h1>
-      <p>This screen is built in a later step.</p>
-    </main>
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Loading caregiver portal...</div>}>
+      <GuardianView params={params} />
+    </Suspense>
   );
 }

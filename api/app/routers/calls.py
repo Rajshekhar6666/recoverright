@@ -200,3 +200,51 @@ async def call_signaling_websocket(
     finally:
         if registered:
             await call_manager.unregister(client_id)
+
+
+
+# ── Feature: Automated Voice Call Dispatch (Gap 7 Telephony Fallback) ───────
+
+from pydantic import BaseModel
+
+class AutomatedCallRequest(BaseModel):
+    run_id: str
+    recipient_phone: Optional[str] = None
+    reason: str = "medication_reminder"
+    language: str = "en"
+
+
+@router.post("/calls/dispatch-automated-call")
+def trigger_automated_voice_call(body: AutomatedCallRequest):
+    """Dispatches an automated IVR voice phone call in English or Hindi.
+
+    Gap 7 & 12 (Rural Health Evidence S12): For patients who do not use
+    smartphones, have low digital literacy (~11% in rural Indian elderly),
+    or miss reminders, automated voice calls provide a vital voice safety net.
+    """
+    from app.services.telephony import dispatch_automated_voice_call
+    real_run_id = store.resolve_run_id(body.run_id) or body.run_id
+    if not store.exists(real_run_id):
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    meta = store.read(real_run_id, "meta.json") if store.has(real_run_id, "meta.json") else {}
+    patient = meta.get("patient") or {}
+
+    # Target phone: explicit body param, caregiver-first phone, or patient phone
+    phone = (
+        body.recipient_phone
+        or (patient.get("guardian_phone") if patient.get("caregiver_first") else None)
+        or patient.get("phone")
+        or "+91 98000 00000"
+    )
+
+    lang = body.language or patient.get("language") or "en"
+    patient_name = patient.get("name") or "Patient"
+
+    return dispatch_automated_voice_call(
+        run_id=real_run_id,
+        recipient_phone=phone,
+        call_reason=body.reason,
+        language=lang,
+        patient_name=patient_name,
+    )

@@ -78,7 +78,7 @@ const RULES: Rule[] = [
     "help", "concern", "needing help"),
   rule(String.raw`\b(?:please\s+|somebody\s+|someone\s+)?help\s+me\b(?!\s+(?:with|understand|find|figure|choose|decide|know|see|read|learn|remember|set|use|check|plan|to)\b)`,
     "help", "concern", "needing help", false, true),
-  rule(String.raw`^(?:please\s+|somebody\s+|someone\s+)?help(?:\s+me)?(?:\s+please)?$`, "help", "concern", "needing help", false, true),
+  rule(String.raw`\b(?:please\s+|somebody\s+|someone\s+)?(?:help|हेल्प)(?:\s+me)?(?:\s+please)?\b`, "help", "critical", "needing help", false, true),
   rule(String.raw`^(?:please\s+)?(?:call|get)\s+(?:me\s+)?(?:a\s+|the\s+|my\s+)?(?:doctor|nurse|care\s+team|hospital)\b|\b(?:need|want)\s+(?:a\s+|the\s+|my\s+)?(?:doctor|nurse)\b`,
     "help", "concern", "wanting a nurse or doctor"),
   // These contain their own negation ("not feeling well"): never cancelled by an earlier "no".
@@ -90,7 +90,7 @@ const RULES: Rule[] = [
   rule(String.raw`\b(?:i'm|i\s+am)\s+(?:sick|ill|unwell|in\s+pain|vomiting|bleeding|feeling\s+(?:sick|ill|unwell|worse|dizzy|bad|weak))\b|\b(?:i\s+have|i've\s+got|having)\s+(?:a\s+)?(?:high\s+)?fever\b`,
     "unwell", "concern", "feeling unwell"),
   rule(String.raw`\b(?:dizzy|dizziness|light\s*headed|giddy|vomiting|throwing\s+up|nauseous)\b|चक्कर|\bchakkar\b`, "dizzy", "concern", "feeling dizzy"),
-  rule(String.raw`\b(?:madad|bachao|bachaao)\b|मदद|बचाओ`, "help", "concern", "needing help"),
+  rule(String.raw`\b(?:madad|bachao|bachaao|help)\b|मदद|बचाओ|हेल्प|सहायता`, "help", "critical", "needing help"),
   rule(String.raw`\btabiyat\s+(?:kharab|theek\s+nahi)\b|तबीयत\s*खराब`, "unwell", "concern", "feeling unwell", true),
 ];
 

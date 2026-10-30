@@ -148,14 +148,14 @@ class TaskActionRequest(BaseModel):
 class MedicationDoseActionRequest(BaseModel):
     """Request to report medication ingestion."""
     reported_taken: bool = True
-    via: Literal["app_button", "voice", "sms_reply", "caregiver_portal", "staff", "scanner"] = "app_button"
+    via: str = "app_button"
     note: Optional[str] = None
 
 
 class MedicationAckRequest(BaseModel):
     """Request to acknowledge reminder receipt."""
     acknowledged: bool = True
-    via: Literal["app_button", "voice", "sms_reply", "caregiver_portal", "staff", "scanner"] = "app_button"
+    via: str = "app_button"
 
 
 class ReapproveRequest(BaseModel):

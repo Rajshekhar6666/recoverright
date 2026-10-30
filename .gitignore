@@ -7,6 +7,7 @@ __pycache__/
 
 # Build artefacts
 *.zip
+*.apk
 
 # Patient data — never commit to source control
 data/runs/

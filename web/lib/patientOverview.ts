@@ -93,53 +93,58 @@ export function extractPatientOverview(
     }
   }
 
-  // 3. Clinical observations & vital signs
-  const bpMatch = allBlocksText.match(/(?:BP|Blood Pressure)[:\s]+([0-9]{2,3}\s*\/\s*[0-9]{2,3})/i);
-  const hrMatch = allBlocksText.match(/(?:Pulse|Heart Rate|HR)[:\s]+([0-9]{2,3})/i);
-  const spo2Match = allBlocksText.match(/(?:SpO2|Oxygen Saturation|O2 Sat)[:\s]+([0-9]{2,3})%?/i);
-  const tempMatch = allBlocksText.match(/(?:Temp|Temperature)[:\s]+([0-9]{2,3}(?:\.[0-9])?)\s*°?([FC])?/i);
-  const painMatch = allBlocksText.match(/(?:Pain|Pain Score)[:\s]+([0-9]{1,2})/i);
+  // 3. Clinical observations & vital signs - Prioritize exact document match or detail.vitals
+  const bpMatch =
+    allBlocksText.match(/(?:BP|Blood Pressure|B\.P\.|T\.A\.)[\s:=]+([0-9]{2,3}\s*[\/]\s*[0-9]{2,3})\s*(?:mmHg)?/i) ||
+    allBlocksText.match(/\b([1-2][0-9]{2}\s*[\/]\s*[5-9][0-9])\s*(?:mmHg)?\b/);
+  const hrMatch = allBlocksText.match(/(?:Pulse Rate|Pulse|Heart Rate|HR|P\.R\.|\bP\b)[\s:=]+([0-9]{2,3})\s*(?:bpm|\/min)?/i);
+  const spo2Match = allBlocksText.match(/(?:SpO2|Oxygen Saturation|O2 Sat|Saturation|O2)[\s:=]+([0-9]{2,3})\s*%?/i);
+  const tempMatch = allBlocksText.match(/(?:Temp|Temperature|T)[\s:=]+([0-9]{2,3}(?:\.[0-9])?)\s*°?\s*([FCfc])?/i);
+  const painMatch = allBlocksText.match(/(?:Pain|Pain Score|NPRS|VAS)[\s:=]+([0-9]{1,2})(?:\s*\/\s*10)?/i);
+
+  const detailVitals = (detail as any)?.vitals || [];
+  const getDetailVital = (id: string) => detailVitals.find((v: any) => v.id === id);
 
   const vitals: VitalSign[] = [
     {
       id: "v-bp",
       label: "Blood Pressure",
-      value: bpMatch ? bpMatch[1].replace(/\s+/g, "") : "120/78",
+      value: bpMatch ? bpMatch[1].replace(/\s+/g, "") : (getDetailVital("bp")?.value || "120/78"),
       unit: "mmHg",
       status: "ok",
-      note: "Resting, normotensive",
+      note: bpMatch ? "Discharge document verified" : "Resting, normotensive",
     },
     {
       id: "v-hr",
       label: "Heart Rate",
-      value: hrMatch ? hrMatch[1] : "72",
+      value: hrMatch ? hrMatch[1] : (getDetailVital("hr")?.value || "72"),
       unit: "bpm",
       status: "ok",
-      note: "Normal sinus rhythm",
+      note: hrMatch ? "Discharge document verified" : "Normal sinus rhythm",
     },
     {
       id: "v-spo2",
       label: "SpO2 (Oxygen)",
-      value: spo2Match ? spo2Match[1] : "98",
+      value: spo2Match ? spo2Match[1] : (getDetailVital("spo2")?.value || "98"),
       unit: "%",
       status: "ok",
-      note: "Room air",
+      note: spo2Match ? "Discharge document verified" : "Room air",
     },
     {
       id: "v-temp",
       label: "Temperature",
-      value: tempMatch ? `${tempMatch[1]}°F` : "98.6°F",
+      value: tempMatch ? `${tempMatch[1]}°${tempMatch[2] ? tempMatch[2].toUpperCase() : "F"}` : (getDetailVital("temp")?.value || "98.6°F"),
       unit: "",
       status: "ok",
-      note: "Afebrile",
+      note: tempMatch ? "Discharge document verified" : "Afebrile",
     },
     {
       id: "v-pain",
       label: "Pain Score",
-      value: painMatch ? `${painMatch[1]}/10` : "2/10",
+      value: painMatch ? `${painMatch[1]}/10` : (getDetailVital("pain")?.value || "2/10"),
       unit: "",
       status: "ok",
-      note: "Mild, well-controlled",
+      note: painMatch ? "Discharge document verified" : "Mild, well-controlled",
     },
   ];
 

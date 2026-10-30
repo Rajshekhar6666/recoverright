@@ -5,42 +5,56 @@ import React, { useEffect, useState } from "react";
 import { Icon } from "@/components/staff/icons";
 import { useLanguage } from "@/lib/i18n";
 import { MilestoneQuote, speakMilestoneQuote } from "@/lib/milestoneQuotes";
+import {
+  generatePersonaMilestoneSpeech,
+  speakPersonaWeb,
+  VoicePersonaId,
+} from "@/lib/voicePersona";
 
 interface Props {
   milestone: MilestoneQuote | null;
   onDismiss: () => void;
   autoSpoken?: boolean;
+  persona?: VoicePersonaId;
+  patientName?: string;
 }
 
 export default function MilestoneCelebrationModal({
   milestone,
   onDismiss,
   autoSpoken = true,
+  persona = "caring_maa",
+  patientName = "Beta",
 }: Props) {
   const { lang } = useLanguage();
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const currentLang = lang === "hi" ? "hi" : "en";
+
+  const personaSpeech = milestone
+    ? generatePersonaMilestoneSpeech(persona, patientName, currentLang)
+    : null;
 
   useEffect(() => {
-    if (!milestone) return;
+    if (!milestone || !personaSpeech) return;
 
     if (autoSpoken) {
       setIsSpeaking(true);
-      speakMilestoneQuote(milestone, lang);
+      speakPersonaWeb(personaSpeech.speech, persona, currentLang);
       const timer = setTimeout(() => setIsSpeaking(false), 8000);
       return () => clearTimeout(timer);
     }
-  }, [milestone, lang, autoSpoken]);
+  }, [milestone, currentLang, autoSpoken, persona, patientName]);
 
-  if (!milestone) return null;
+  if (!milestone || !personaSpeech) return null;
 
-  const currentLang = lang === "hi" ? "hi" : "en";
   const title = milestone.title[currentLang];
-  const quote = milestone.quote[currentLang];
+  const quote = personaSpeech.quote;
+  const author = personaSpeech.author;
   const cheer = milestone.cheer[currentLang];
 
   const handleReplaySpeech = () => {
     setIsSpeaking(true);
-    speakMilestoneQuote(milestone, currentLang);
+    speakPersonaWeb(personaSpeech.speech, persona, currentLang);
     setTimeout(() => setIsSpeaking(false), 7000);
   };
 
@@ -90,6 +104,9 @@ export default function MilestoneCelebrationModal({
           {/* Spoken Quote Text */}
           <div className="pt-milestone-quote-box">
             <p className="pt-milestone-quote-text">“{quote}”</p>
+            <small style={{ color: "#0d9488", fontWeight: 700, marginTop: 4, display: "block" }}>
+              {author}
+            </small>
           </div>
 
           {/* Cheerful Tagline */}
@@ -99,32 +116,22 @@ export default function MilestoneCelebrationModal({
           <div className="pt-milestone-voice-row">
             <button
               type="button"
-              className={`pt-milestone-speak-btn ${isSpeaking ? "is-speaking" : ""}`}
+              className={`pt-milestone-audio-btn ${isSpeaking ? "is-speaking" : ""}`}
               onClick={handleReplaySpeech}
-              title={lang === "hi" ? "आवाज़ में फिर से सुनें" : "Listen aloud again"}
+              title="Hear celebration in chosen persona voice"
             >
               <Icon.volume size={16} />
-              <span>{lang === "hi" ? "आवाज़ में सुनें" : "Speak Aloud"}</span>
+              <span>{isSpeaking ? (lang === "hi" ? "बोल रहा हूँ..." : "Speaking...") : (lang === "hi" ? "आवाज़ दोबारा सुनें" : "Listen in Persona Voice")}</span>
             </button>
-
-            {isSpeaking && (
-              <div className="pt-milestone-wave" aria-hidden="true">
-                {[0.4, 0.9, 0.6, 1.0, 0.7, 0.95, 0.5].map((m, i) => (
-                  <i key={i} style={{ height: `${8 + Math.sin(Date.now() / 180 + i) * 10 * m}px` }} />
-                ))}
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Dismiss Button Footer */}
-        <div className="pt-milestone-footer">
+          {/* Close Button */}
           <button
             type="button"
-            className="pt-milestone-action-btn"
+            className="pt-btn pt-btn--solid pt-milestone-continue"
             onClick={onDismiss}
           >
-            <span>{lang === "hi" ? "धन्यवाद, जारी रखें! 👏" : "Keep Going! 👏"}</span>
+            {lang === "hi" ? "रिकवरी जारी रखें" : "Continue Recovery"}
           </button>
         </div>
       </motion.div>

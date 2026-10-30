@@ -1,8 +1,29 @@
-"""Human review rules: what must be decided before a plan can be approved, and what approval produces."""
+"""Human review rules: what must be decided before a plan can be approved, and what approval produces.
+
+Gap 5 fix: A completeness gate now checks that every approved plan contains at
+least one item in each required clinical category before approval is permitted.
+Missing categories are surfaced as synthetic blocker entries so the nurse can
+see exactly what is absent rather than receiving a generic error.
+
+Required items (evidence-based, from gap analysis):
+  • medications  – at least one prescription item
+  • follow_ups   – at least one follow-up appointment with a date/time
+  • warning_signs – at least one warning sign the patient should act on
+  • contacts     – at least one emergency or care-team contact
+"""
 from datetime import datetime, timezone
 from typing import Optional
 
 from app.schemas.review import FieldDecision, ReviewField
+
+# ── Clinical completeness requirements (Gap 5) ─────────────────────────────
+# Maps each required category to a human-readable description shown in blockers.
+REQUIRED_CATEGORIES: dict[str, str] = {
+    "medications": "at least one medication with name, dose and frequency",
+    "follow_ups": "at least one follow-up appointment with a date or timeframe",
+    "warning_signs": "at least one warning sign the patient should watch for",
+    "contacts": "at least one emergency or care-team contact number",
+}
 
 
 class ReviewError(ValueError):
@@ -27,6 +48,43 @@ def blockers(items: list[ReviewField]) -> list[dict]:
         else:
             continue
         out.append({"field_id": f.field_id, "category": f.category, "status": f.status, "reason": reason})
+
+    # Gap 5: Completeness gate – ensure required clinical categories are present
+    out.extend(_completeness_blockers(items))
+    return out
+
+
+def _completeness_blockers(items: list[ReviewField]) -> list[dict]:
+    """Return synthetic blocker entries for required clinical categories that are absent
+    or have been entirely rejected in the current review state.
+
+    A category is considered present if at least one non-rejected item with a
+    non-empty proposed value exists for it.
+    """
+    present: set[str] = set()
+    for it in items:
+        cat = it.field.category
+        if cat not in REQUIRED_CATEGORIES:
+            continue
+        # Item counts as present if it has a proposed value and was not rejected
+        decision_action = it.decision.action if it.decision else None
+        if decision_action == "reject":
+            continue
+        if it.field.proposed or (it.decision and it.decision.action in ("confirm", "edit")):
+            present.add(cat)
+
+    out = []
+    for cat, description in REQUIRED_CATEGORIES.items():
+        if cat not in present:
+            out.append({
+                "field_id": f"__completeness__{cat}",
+                "category": cat,
+                "status": "missing",
+                "reason": (
+                    f"Plan is missing required category '{cat}' ({description}). "
+                    "Add the information or confirm it is intentionally absent before approving."
+                ),
+            })
     return out
 
 

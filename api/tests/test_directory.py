@@ -22,8 +22,8 @@ class TestDirectory(unittest.TestCase):
         self.assertEqual(patient_summary({"run_id": "r3"})["status"], "queued")
 
     def test_index_puts_people_needing_help_first_then_newest(self):
-        runs = [meta("old", created="2026-10-17T00:00:00+00:00"), meta("new", created="2026-10-19T00:00:00+00:00"),
-                meta("help", created="2026-10-10T00:00:00+00:00"), meta("crit", created="2026-10-01T00:00:00+00:00")]
+        runs = [meta("old", name="Patient Old", created="2026-10-17T00:00:00+00:00"), meta("new", name="Patient New", created="2026-10-19T00:00:00+00:00"),
+                meta("help", name="Patient Help", created="2026-10-10T00:00:00+00:00"), meta("crit", name="Patient Crit", created="2026-10-01T00:00:00+00:00")]
         idx = patients_index(runs, {"help": {"active": 1, "critical_active": 0, "total": 1}, "crit": {"active": 1, "critical_active": 1, "total": 1}})
         self.assertEqual([r["id"] for r in idx], ["crit", "help", "new", "old"])
         self.assertEqual(patients_index([{"nope": 1}]), [], "a run without an id is skipped, not a crash")

@@ -79,15 +79,28 @@ def _extract_text_from_base64_image(image_b64: str) -> str:
         return ""
 
 
-def _parse_med_and_dose(text: str) -> tuple[str, str]:
+def _parse_med_and_dose(text: str, prescribed_items: Optional[List[Dict[str, Any]]] = None) -> tuple[str, str]:
     """Extracts medication name and dosage from text using regex heuristics."""
     clean = text.replace("\n", " ").strip()
-    
-    # Check known sample keywords
     lower = clean.lower()
     detected_name = ""
     detected_dose = ""
-    
+
+    # First, match against patient's prescribed items if provided
+    if prescribed_items:
+        for item in prescribed_items:
+            attrs = item.get("attrs") or {}
+            p_name = (attrs.get("name") or "").strip()
+            if p_name and p_name.lower() in lower:
+                detected_name = p_name
+                break
+            # Also check individual words if multi-word drug
+            p_words = [w for w in re.split(r"[\s\-_]+", p_name.lower()) if len(w) > 3]
+            if p_words and any(w in lower for w in p_words):
+                detected_name = p_name
+                break
+
+    # Check known sample keywords
     known_meds = [
         ("amoxicillin-clavulanate", "Amoxicillin-Clavulanate"),
         ("amoxicillin", "Amoxicillin"),
@@ -107,18 +120,34 @@ def _parse_med_and_dose(text: str) -> tuple[str, str]:
         ("omeprazole", "Omeprazole"),
         ("ciprofloxacin", "Ciprofloxacin"),
         ("azithromycin", "Azithromycin"),
+        ("losartan", "Losartan"),
+        ("amlodipine", "Amlodipine"),
+        ("tramadol", "Tramadol"),
+        ("ceftriaxone", "Ceftriaxone"),
+        ("levothyroxine", "Levothyroxine"),
+        ("metoprolol", "Metoprolol"),
     ]
-    
-    for needle, proper in known_meds:
-        if needle in lower:
-            detected_name = proper
-            break
-            
+
+    if not detected_name:
+        for needle, proper in known_meds:
+            if needle in lower:
+                detected_name = proper
+                break
+
+    # If still not detected, search for drug name patterns (word preceding tablets/capsules/mg)
+    if not detected_name:
+        pattern_match = re.search(r"([A-Za-z]{3,20})\s+(?:tablets?|capsules?|syrup|ip|usp|bp|\d+\s*mg)", clean, re.IGNORECASE)
+        if pattern_match:
+            candidate = pattern_match.group(1).title()
+            # Ignore common non-drug words
+            if candidate.lower() not in {"take", "daily", "every", "with", "water", "food", "oral", "dose", "batch", "exp", "mfg"}:
+                detected_name = candidate
+
     # Extract dosage: e.g. 500 mg, 625mg, 40 mg, 10mg
     dose_match = re.search(r"(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)\b", clean, re.IGNORECASE)
     if dose_match:
         detected_dose = f"{dose_match.group(1)} {dose_match.group(2).lower()}"
-        
+
     return detected_name, detected_dose
 
 
@@ -145,11 +174,11 @@ def verify_scanned_pill(
         extracted = _extract_text_from_base64_image(image_data)
         if extracted:
             ocr_text = extracted
-        parsed_name, parsed_dose = _parse_med_and_dose(ocr_text or raw_text)
+        parsed_name, parsed_dose = _parse_med_and_dose(ocr_text or raw_text, prescribed_items)
         detected_name = parsed_name or detected_name
         detected_dose = parsed_dose or detected_dose
     elif raw_text:
-        parsed_name, parsed_dose = _parse_med_and_dose(raw_text)
+        parsed_name, parsed_dose = _parse_med_and_dose(raw_text, prescribed_items)
         detected_name = parsed_name or detected_name
         detected_dose = parsed_dose or detected_dose
 

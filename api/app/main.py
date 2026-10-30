@@ -1,19 +1,30 @@
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import analytics, calls, caregivers, demo, events, help, patients, plans, reminders, runs
+from app.routers import analytics, auth, calls, caregivers, demo, events, help, patients, plans, privacy, reminders, runs, vitals, voice, webhooks, wellness
 from app.services.storage import store, runs_dir
 from app.services.help_store import help_store
+from app.services.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
 logger = logging.getLogger("recoverright")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="RecoverRight API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start background services on startup; shut them down on exit."""
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
+app = FastAPI(title="RecoverRight API", version="1.0.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -74,6 +85,7 @@ app.add_middleware(
 )
 
 app.include_router(events.router)
+app.include_router(auth.router)
 app.include_router(runs.router)
 app.include_router(help.router)
 app.include_router(patients.router)
@@ -83,6 +95,11 @@ app.include_router(reminders.router)
 app.include_router(caregivers.router)
 app.include_router(demo.router)
 app.include_router(calls.router)
+app.include_router(webhooks.router)
+app.include_router(vitals.router)
+app.include_router(voice.router)
+app.include_router(privacy.router)
+app.include_router(wellness.router, prefix="/wellness", tags=["wellness"])
 
 
 @app.get("/health")
@@ -130,4 +147,5 @@ def system_metrics():
         "help_requests": {
             "active": active_help,
         },
+        "scheduler": get_scheduler_status(),
     }

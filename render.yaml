@@ -1,0 +1,35 @@
+services:
+  # 1. RecoverRight FastAPI Clinical Backend Engine
+  - type: web
+    name: recoverright-api
+    runtime: docker
+    dockerfilePath: api/Dockerfile
+    dockerContext: api
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MODEL_A
+        value: openai/gpt-oss-120b
+      - key: MODEL_B
+        value: qwen/qwen3.8-27b
+      - key: RR_RUNS_DIR
+        value: /app/data/runs
+    disk:
+      name: recoverright-api-storage
+      mountPath: /app/data
+      sizeGB: 1
+
+  # 2. RecoverRight Next.js Patient & Staff Web Portal
+  - type: web
+    name: recoverright-web
+    runtime: docker
+    dockerfilePath: web/Dockerfile
+    dockerContext: web
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: recoverright-api
+          property: host

@@ -13,8 +13,8 @@ RecoverRight operates across four integrated layers:
 ```mermaid
 graph TD
     A[Discharge Summary PDF / DOCX] --> B[Parse & Grounding Engine]
-    B --> C1[LLM Extractor A: GPT-OSS-120B]
-    B --> C2[LLM Extractor B: Qwen3.8-27B]
+    B --> C1[LLM Extractor A: llama-3.3-70b-versatile]
+    B --> C2[LLM Extractor B: openai/gpt-oss-20b]
     B --> C3[Deterministic Medication Table Reader]
     C1 --> D[Reconciliation & Location-Based Alignment]
     C2 --> D
@@ -52,6 +52,16 @@ graph TD
 - Real-time bilingual speech recognition supporting Indian English (`en-IN`) and Hindi (`hi-IN`).
 - Eager distress detection with local negation analysis ("no pain but can't breathe" triggers immediate critical alert).
 - Clinical emergency SLA queue (120s for critical, 600s for concern) in `/staff/help`.
+
+### 5. Research Evidence & Clinical Safety Upgrades
+- **Discharge Waiting-Room Mode**: Turns India's average 332-minute discharge billing/insurance delay into active recovery education with live milestone tracking and pre-discharge teach-back.
+- **Patient Teach-Back Comprehension Loop**: Okrainec (S6) showed >90% of patients think they understand but half miscomprehend. The app tests understanding; wrong answers escalate to the nurse.
+- **Risk-Tiered Human Follow-up**: Proactively ranks patients into Red/Amber/Green tiers based on high-risk drugs, polypharmacy, missed doses, and teach-back comprehension so nurses call the right 5 patients first.
+- **Pre-Admission vs. Discharge Medicine Reconciliation**: Alqenae (S1) found ~50% of discharges have unintended discrepancies. Flags added, stopped, and changed drugs for clinician confirmation.
+- **Affordability & First-Fill Check**: Solves medication access barriers (78.6% affordability difficulty in Indian studies) by flagging generic substitution requests early.
+- **Family Circle Role Delegation**: Assigns discrete responsibilities (medication administration, wound checks, transport, primary emergency contact) to prevent caregiver burnout.
+- **Diabetes Metabolic Recovery Pack**: Structured blood glucose logging with automatic Hypoglycemia Rule of 15 guidance and critical alert thresholds (<54 mg/dL).
+- **Single-Page Clinical Audit Export**: Immutable export recording what AI proposed, what clinicians changed, and who signed off.
 
 ---
 

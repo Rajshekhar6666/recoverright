@@ -44,6 +44,7 @@ def _fail(e: HelpError):
 
 
 @router.post("/help", status_code=201)
+@router.post("/help/requests", status_code=201)
 def create_help(body: HelpIn):
     token = body.token
     resolve_fn = getattr(store, "resolve_run_id", None)

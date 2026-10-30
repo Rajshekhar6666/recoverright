@@ -52,4 +52,5 @@ export const Icon = {
   list: ({ size, ...p }: P) => svg(size, p, <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" /></>),
   layers: ({ size, ...p }: P) => svg(size, p, <><path d="m12 3 9 5-9 5-9-5z" /><path d="m3 13 9 5 9-5" /></>),
   book: ({ size, ...p }: P) => svg(size, p, <><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 19V5M9 7h6" /></>),
+  trash: ({ size, ...p }: P) => svg(size, p, <><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" /></>),
 };

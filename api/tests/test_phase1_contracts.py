@@ -137,7 +137,7 @@ class TestPhase1Contracts(unittest.TestCase):
                 {
                     "field_id": "m1",
                     "category": "medications",
-                    "attrs": {"name": "Cefixime", "dose": "200 mg", "frequency": "Twice daily", "route": "Oral"},
+                    "attrs": {"name": "Cefixime", "dose": "200 mg", "frequency": "Twice daily", "route": "Oral", "confirmed_times": "08:00 AM, 08:00 PM"},
                     "decision": "confirmed",
                     "status_at_review": "agreed",
                 },

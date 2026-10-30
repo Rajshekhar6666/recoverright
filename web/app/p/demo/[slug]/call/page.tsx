@@ -13,6 +13,7 @@ function CallRedirect({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const normalisedSlug = slug.toLowerCase();
   redirect(`/p/${normalisedSlug}/call`);
+  return null;
 }
 
 export default function DemoSlugCallPage({ params }: { params: Promise<{ slug: string }> }) {

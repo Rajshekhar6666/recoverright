@@ -1,0 +1,7 @@
+node_modules/
+.expo/
+dist/
+build/
+*.keystore
+*.jks
+google-play-service-account.json

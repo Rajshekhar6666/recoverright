@@ -286,3 +286,197 @@ def list_caregiver_notifications(token: str):
     run_id, meta, caregiver = _resolve_caregiver_run(token)
     notifs = store.get_notifications(run_id)
     return [CaregiverNotification.model_validate(n) for n in notifs]
+
+
+# ── Feature: Family Circle Delegation ──────────────────────────────────────
+
+from pydantic import BaseModel, Field
+
+class FamilyMemberRole(BaseModel):
+    name: str
+    phone: str = ""
+    relationship: str = "Family Member"
+    roles: list[str] = Field(default_factory=list)  # ["medications", "wound_care", "transport", "emergency"]
+    availability: str = "Full-time"
+    primary_contact: bool = False
+
+
+class FamilyCircleUpdate(BaseModel):
+    members: list[FamilyMemberRole]
+    updated_by: str = "caregiver"
+
+
+@router.get("/{token}/family-circle")
+def get_family_circle(token: str):
+    """Retrieves assigned family circle caregiving roles and emergency hierarchy."""
+    run_id, meta, _ = _resolve_caregiver_run(token)
+    circle = store.read(run_id, "family_circle.json") if store.has(run_id, "family_circle.json") else []
+    return {
+        "run_id": run_id,
+        "patient_name": meta.get("patient", {}).get("name", "Patient"),
+        "total_members": len(circle),
+        "members": circle,
+        "available_role_definitions": [
+            {"id": "medications", "label": "Medicine Administration", "description": "Responsible for daily pill reminders and logging doses"},
+            {"id": "wound_care", "label": "Wound Care & Dressing", "description": "Monitors surgical dressing, cleanliness, and signs of infection"},
+            {"id": "vitals", "label": "Vitals & Glucose", "description": "Takes and records BP, temperature, and blood glucose"},
+            {"id": "transport", "label": "Clinic Follow-Up Driver", "description": "Coordinates travel to scheduled clinical appointments"},
+            {"id": "emergency", "label": "Primary Hospital Contact", "description": "Called first in case of critical distress or triage escalation"},
+        ],
+    }
+
+
+@router.post("/{token}/family-circle")
+def update_family_circle(token: str, body: FamilyCircleUpdate):
+    """Updates designated family roles (medication admin, driver, primary contact)."""
+    run_id, _, _ = _resolve_caregiver_run(token)
+    members_data = [m.model_dump() for m in body.members]
+    with store.lock(run_id):
+        store.write(run_id, "family_circle.json", members_data)
+        store.audit(run_id, body.updated_by, "family_circle.updated", count=len(members_data))
+    bus.emit(run_id, Stage.CAREGIVER, "family_circle.updated", {"count": len(members_data)})
+    return {"status": "saved", "members": members_data}
+
+
+# ── Gap 7 & 11: Caregiver Phone Verification & Consent (Caregiver-First Mode) ──
+
+class CaregiverPhoneVerifyRequest(BaseModel):
+    phone: str
+    caregiver_name: Optional[str] = None
+    relationship: Optional[str] = "family"
+
+
+class CaregiverConsentRequest(BaseModel):
+    consented: bool
+    consent_type: str = "sms_reminders"  # "sms_reminders", "plan_view", "emergency_alerts"
+    recorded_by: str = "caregiver"
+    notes: Optional[str] = None
+
+
+@router.post("/{token}/verify-phone")
+def verify_caregiver_phone(token: str, body: CaregiverPhoneVerifyRequest):
+    """Registers and verifies a caregiver's phone number for caregiver-first delivery mode.
+
+    Gap 7 & 11 (Gaps S6, S12): Older adults and patients with low digital literacy
+    may not use smartphones directly. The caregiver-first model routes reminders,
+    alerts, and plan summaries to a verified family member's phone instead of
+    (or in addition to) the patient's phone. This endpoint registers the phone
+    and marks it 'verified' — in production, a real OTP would be sent and confirmed.
+    """
+    run_id, meta, _ = _resolve_caregiver_run(token)
+    patient = meta.get("patient", {})
+
+    # Validate phone — basic format check (E.164 or Indian 10-digit)
+    import re as _re
+    phone_clean = _re.sub(r"[\s\-\(\)]", "", body.phone)
+    if not _re.match(r"^\+?[0-9]{7,15}$", phone_clean):
+        raise HTTPException(422, "phone number format invalid – use E.164 (+91XXXXXXXXXX) or 10-digit Indian format")
+
+    # Store caregiver phone in meta
+    caregiver_profile = {
+        "phone": phone_clean,
+        "caregiver_name": body.caregiver_name or "Family Caregiver",
+        "relationship": body.relationship or "family",
+        "verified": True,  # In production: set False until OTP confirmed
+        "verified_at": datetime.now(timezone.utc).isoformat(),
+        "caregiver_first": True,  # Enables caregiver-first reminder routing
+    }
+
+    with store.lock(run_id):
+        # Merge with existing patient meta
+        existing_patient = store.read(run_id, "meta.json").get("patient", {})
+        existing_patient["guardian_phone"] = phone_clean
+        existing_patient["guardian_name"] = body.caregiver_name or existing_patient.get("guardian_name", "")
+        existing_patient["caregiver_first"] = True
+        existing_patient["caregiver_profile"] = caregiver_profile
+        store.update_meta(run_id, patient=existing_patient)
+        store.audit(run_id, body.caregiver_name or "caregiver", "caregiver.phone_verified",
+                    phone=phone_clean, caregiver_first=True)
+
+    bus.emit(run_id, Stage.CAREGIVER, "caregiver.phone_verified", {
+        "phone": phone_clean,
+        "caregiver_name": caregiver_profile["caregiver_name"],
+        "caregiver_first_enabled": True,
+    })
+
+    return {
+        "verified": True,
+        "caregiver_first_enabled": True,
+        "phone": phone_clean,
+        "caregiver_name": caregiver_profile["caregiver_name"],
+        "message": (
+            "Phone registered. Reminders and alerts will now be routed to this number. "
+            "In production, an OTP confirmation would be required."
+        ),
+    }
+
+
+@router.post("/{token}/record-consent")
+def record_caregiver_consent(token: str, body: CaregiverConsentRequest):
+    """Records explicit caregiver consent for data sharing, notifications, and plan access.
+
+    Gap 11 (S6): Families reinforced instructions and acted as interpreters.
+    Informed consent for caregivers must be recorded before PHI is shared with them.
+    This endpoint captures consent type (plan_view, sms_reminders, emergency_alerts)
+    and the timestamp — creating an auditable consent record.
+    """
+    VALID_CONSENT_TYPES = {"sms_reminders", "plan_view", "emergency_alerts", "all"}
+    if body.consent_type not in VALID_CONSENT_TYPES:
+        raise HTTPException(422, f"consent_type must be one of {sorted(VALID_CONSENT_TYPES)}")
+
+    run_id, meta, caregiver = _resolve_caregiver_run(token)
+
+    consent_record = {
+        "consent_type": body.consent_type,
+        "consented": body.consented,
+        "recorded_by": body.recorded_by,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "notes": body.notes or "",
+    }
+
+    with store.lock(run_id):
+        existing_consents: list = []
+        if store.has(run_id, "caregiver_consents.json"):
+            try:
+                existing_consents = store.read(run_id, "caregiver_consents.json")
+            except Exception:
+                existing_consents = []
+        existing_consents.append(consent_record)
+        store.write(run_id, "caregiver_consents.json", existing_consents)
+        store.audit(run_id, body.recorded_by, "caregiver.consent_recorded",
+                    consent_type=body.consent_type, consented=body.consented)
+
+    bus.emit(run_id, Stage.CAREGIVER, "caregiver.consent_recorded", consent_record)
+
+    return {
+        "recorded": True,
+        "consent_type": body.consent_type,
+        "consented": body.consented,
+        "message": (
+            f"Consent {'granted' if body.consented else 'declined'} for '{body.consent_type}'."
+        ),
+    }
+
+
+@router.get("/{token}/consents")
+def get_caregiver_consents(token: str):
+    """Returns all recorded consent entries for this caregiver."""
+    run_id, _, _ = _resolve_caregiver_run(token)
+    if not store.has(run_id, "caregiver_consents.json"):
+        return {"run_id": run_id, "consents": [], "total": 0}
+    try:
+        consents = store.read(run_id, "caregiver_consents.json")
+    except Exception:
+        consents = []
+    return {"run_id": run_id, "consents": consents, "total": len(consents)}
+
+
+@router.get("/{token}/daily-digest")
+def get_caregiver_daily_digest(token: str):
+    """Returns an actionable daily recovery digest for family caregivers."""
+    from app.services.caregiver_digest import generate_caregiver_digest
+    run_id, _, _ = _resolve_caregiver_run(token)
+    try:
+        return generate_caregiver_digest(run_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

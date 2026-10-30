@@ -57,7 +57,7 @@ async def _replay_cached(label: str, model: str, plan: Optional[ExtractedPlan], 
     bus.emit(run_id, stage, f"extract.{label}.done", {"fields": n, "missing": len(plan.missing), "cached": True})
 
 
-async def _get_plans(doc, src, run_id: str, use_cache: bool):
+async def _get_plans(doc, src, run_id: str, use_cache: bool, patient: Optional[dict] = None):
     key = _cache_key(src)
     fa, fb = CACHE / f"{key}_a.json", CACHE / f"{key}_b.json"
     if use_cache and fa.exists() and fb.exists():
@@ -65,7 +65,7 @@ async def _get_plans(doc, src, run_id: str, use_cache: bool):
         b = ExtractedPlan.model_validate_json(fb.read_text(encoding="utf-8"))
         await asyncio.gather(_replay_cached("a", MODEL_A, a, run_id), _replay_cached("b", MODEL_B, b, run_id))
         return a, b, True
-    a, b = await extract_both(doc, run_id)
+    a, b = await extract_both(doc, run_id, known_patient=patient)
     if use_cache and a is not None and b is not None:  # only cache a complete pair
         CACHE.mkdir(parents=True, exist_ok=True)
         fa.write_text(a.model_dump_json(indent=2), encoding="utf-8")
@@ -84,7 +84,7 @@ async def run_pipeline(run_id: str, use_cache: bool = True) -> None:
         doc = parse_document(src, run_id=run_id)
         store.write(run_id, "document.json", doc)
 
-        plan_a, plan_b, cached = await _get_plans(doc, src, run_id, use_cache)
+        plan_a, plan_b, cached = await _get_plans(doc, src, run_id, use_cache, patient=meta.get("patient"))
         store.write(run_id, "plan_a.json", plan_a if plan_a else {})
         store.write(run_id, "plan_b.json", plan_b if plan_b else {})
 

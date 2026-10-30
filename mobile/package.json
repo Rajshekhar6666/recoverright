@@ -1,0 +1,38 @@
+{
+  "name": "recoverright-mobile",
+  "version": "1.0.0",
+  "description": "RecoverRight Patient Companion Mobile App with Background Safety Mic, Calendar Sync, Native Alarms, and Real-Time Hospital Connection",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "test": "tsx --test tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build:aab": "eas build --platform android --profile production",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:local:aab": "eas build --platform android --profile production --local",
+    "build:local:apk": "eas build --platform android --profile preview --local"
+  },
+  "dependencies": {
+    "babel-preset-expo": "~12.0.0",
+    "expo": "~52.0.0",
+    "expo-asset": "~11.0.3",
+    "expo-background-fetch": "~13.0.0",
+    "expo-build-properties": "~0.13.3",
+    "expo-calendar": "~14.0.6",
+    "expo-camera": "~16.0.18",
+    "expo-notifications": "~0.29.0",
+    "expo-speech": "~13.0.1",
+    "expo-task-manager": "~12.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "~18.3.12",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

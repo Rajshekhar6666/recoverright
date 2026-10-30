@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 function HelpRedirect({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   redirect(`/p/${slug.toLowerCase()}/help`);
+  return null;
 }
 
 export default function DemoSlugHelpPage({ params }: { params: Promise<{ slug: string }> }) {

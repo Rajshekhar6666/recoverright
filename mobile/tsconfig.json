@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "typeRoots": ["../web/node_modules/@types"],
+    "paths": {
+      "react": ["../web/node_modules/@types/react"],
+      "react/jsx-runtime": ["../web/node_modules/@types/react/jsx-runtime"]
+    }
+  },
+  "include": ["src/**/*", "tests/**/*"]
+}
