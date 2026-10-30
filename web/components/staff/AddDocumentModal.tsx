@@ -64,8 +64,9 @@ export default function AddDocumentModal({
   const handleFileChange = (f: File | undefined | null) => {
     if (!f) return;
     const ext = f.name.toLowerCase();
-    if (!ext.endsWith(".docx") && !ext.endsWith(".pdf")) {
-      setValidationError(appLang === "hi" ? "अमान्य फ़ाइल प्रारूप। कृपया .docx या .pdf दस्तावेज़ चुनें।" : "Invalid file format. Please upload a .docx or .pdf document.");
+    const ok = [".docx", ".pdf", ".txt", ".text", ".md", ".rtf", ".csv", ".png", ".jpg", ".jpeg", ".webp"];
+    if (!ok.some((e) => ext.endsWith(e))) {
+      setValidationError(appLang === "hi" ? "अमान्य फ़ाइल प्रारूप। कृपया .docx, .pdf, .txt, या .jpg/.png दस्तावेज़ चुनें।" : "Invalid file format. Please upload a .docx, .pdf, .txt, or image document.");
       return;
     }
     setValidationError(null);
@@ -96,9 +97,9 @@ Red Flag Warning Signs:
 Follow-Up Care:
 - Surgical OPD review in 7 days with Dr. Arvind Rao.`;
 
-    const blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-    const sampleFile = new File([blob], `${docType}_${(name || "patient").toLowerCase().replace(/\s+/g, "_")}.docx`, {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    const blob = new Blob([content], { type: "text/plain" });
+    const sampleFile = new File([blob], `${docType}_${(name || "patient").toLowerCase().replace(/\s+/g, "_")}.txt`, {
+      type: "text/plain",
     });
     setFile(sampleFile);
     setValidationError(null);

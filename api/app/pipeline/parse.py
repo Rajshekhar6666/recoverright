@@ -70,42 +70,153 @@ def _pdf_line(text: str, page_no: int, chars: list, body_size: float) -> dict:
 _SENTENCE_END = re.compile(r"[.!?:;\u0964\u3002]$")
 
 
+def _iter_text(path: Path) -> Iterator[dict]:
+    content = ""
+    for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
+        try:
+            content = path.read_text(encoding=enc)
+            break
+        except Exception:
+            continue
+    if not content:
+        return
+    for line in content.splitlines():
+        line = _clean(line)
+        if not line:
+            continue
+        if re.match(r"^([-*\u2022]|\d+[.)])\s+", line):
+            yield _raw("list_item", line)
+        elif (line.endswith(":") and len(line) <= 80) or (line.isupper() and len(line) <= 60) or line.startswith("#"):
+            yield _raw("heading", line.lstrip("#").strip())
+        elif "|" in line and line.count("|") >= 2:
+            cells = [_clean(c) for c in line.split("|") if _clean(c)]
+            if cells:
+                yield _raw("table_row", " | ".join(cells), None, None, None, cells)
+        else:
+            yield _raw("paragraph", line)
+
+
 def _iter_pdf(path: Path) -> Iterator[dict]:
+    found_any = False
     with pdfplumber.open(str(path)) as pdf:
         table_no = 0
         for page_no, page in enumerate(pdf.pages, 1):
             sizes = sorted(c["size"] for c in page.chars) or [10.0]
             body_size = sizes[len(sizes) // 2]  # median character size = body text
             entries: list[tuple[float, dict]] = []
-            tables = page.find_tables()
+            tables = []
+            try:
+                tables = page.find_tables() or []
+            except Exception:
+                pass
             region = page
             for t in tables:
-                region = region.outside_bbox(t.bbox)  # text outside tables, so nothing is read twice
+                try:
+                    region = region.outside_bbox(t.bbox)  # text outside tables, so nothing is read twice
+                except Exception:
+                    pass
             prev = None  # last paragraph/list entry that a wrapped line may continue
-            for line in region.extract_text_lines():
-                text = _clean(line["text"])
-                if not text:
-                    continue
-                raw = _pdf_line(text, page_no, line.get("chars", []), body_size)
-                height = max(line["bottom"] - line["top"], 1.0)
-                if (prev is not None and raw["type"] == "paragraph"
-                        and prev["raw"]["type"] in ("paragraph", "list_item")
-                        and not _SENTENCE_END.search(prev["raw"]["text"])
-                        and (line["top"] - prev["bottom"]) < 0.35 * height):
-                    prev["raw"]["text"] += " " + text  # a wrapped line continues its paragraph
-                    prev["bottom"] = line["bottom"]
-                    continue
-                prev = {"raw": raw, "bottom": line["bottom"]}
-                entries.append((line["top"], raw))
+            try:
+                for line in region.extract_text_lines():
+                    text = _clean(line["text"])
+                    if not text:
+                        continue
+                    raw = _pdf_line(text, page_no, line.get("chars", []), body_size)
+                    height = max(line["bottom"] - line["top"], 1.0)
+                    if (prev is not None and raw["type"] == "paragraph"
+                            and prev["raw"]["type"] in ("paragraph", "list_item")
+                            and not _SENTENCE_END.search(prev["raw"]["text"])
+                            and (line["top"] - prev["bottom"]) < 0.35 * height):
+                        prev["raw"]["text"] += " " + text  # a wrapped line continues its paragraph
+                        prev["bottom"] = line["bottom"]
+                        continue
+                    prev = {"raw": raw, "bottom": line["bottom"]}
+                    entries.append((line["top"], raw))
+            except Exception:
+                pass
+
             for t in tables:
-                table_no += 1
-                for r, row in enumerate(t.extract()):
-                    cells = [_clean(c or "") for c in row]
-                    if any(cells):
-                        entries.append((t.bbox[1] + r * 0.01,
-                                        _raw("table_row", " | ".join(cells), page_no, f"t{table_no}", r, cells)))
+                try:
+                    table_no += 1
+                    for r, row in enumerate(t.extract() or []):
+                        cells = [_clean(c or "") for c in row]
+                        if any(cells):
+                            entries.append((t.bbox[1] + r * 0.01,
+                                            _raw("table_row", " | ".join(cells), page_no, f"t{table_no}", r, cells)))
+                except Exception:
+                    pass
+
+            # Fallback A: if no entries extracted from text lines, extract page text directly
+            if not entries:
+                try:
+                    raw_page_text = page.extract_text() or ""
+                    for l_idx, line in enumerate(raw_page_text.splitlines()):
+                        cleaned = _clean(line)
+                        if cleaned:
+                            entries.append((float(l_idx), _pdf_line(cleaned, page_no, [], body_size)))
+                except Exception:
+                    pass
+
             for _, raw in sorted(entries, key=lambda x: x[0]):
+                found_any = True
                 yield raw
+
+    # Fallback B: if pdfplumber found nothing at all (e.g. font dictionary or layout issue), try pypdfium2
+    if not found_any:
+        try:
+            import pypdfium2 as pdfium
+            pdf_doc = pdfium.PdfDocument(str(path))
+            for p_no in range(len(pdf_doc)):
+                page = pdf_doc.get_page(p_no)
+                textpage = page.get_textpage()
+                raw_text = textpage.get_text_range()
+                for line in raw_text.splitlines():
+                    cleaned = _clean(line)
+                    if cleaned:
+                        if re.match(r"^([-*\u2022]|\d+[.)])\s+", cleaned):
+                            yield _raw("list_item", cleaned, p_no + 1)
+                        elif (cleaned.endswith(":") and len(cleaned) <= 80) or (cleaned.isupper() and len(cleaned) <= 60):
+                            yield _raw("heading", cleaned, p_no + 1)
+                        else:
+                            yield _raw("paragraph", cleaned, p_no + 1)
+        except Exception:
+            pass
+
+
+def _ocr_image(path: Path) -> list[dict]:
+    """OCR fallback for image uploads (.png, .jpg, etc.) using pytesseract if available."""
+    entries: list[dict] = []
+    try:
+        import pytesseract
+        from PIL import Image
+        import shutil
+
+        if not shutil.which("tesseract"):
+            for cand in [
+                Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
+                Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+                Path(r"/usr/bin/tesseract"),
+                Path(r"/usr/local/bin/tesseract"),
+            ]:
+                if cand.exists():
+                    pytesseract.pytesseract.tesseract_cmd = str(cand)
+                    break
+
+        img = Image.open(str(path))
+        text = pytesseract.image_to_string(img)
+        for line in text.splitlines():
+            cleaned = _clean(line)
+            if not cleaned:
+                continue
+            if re.match(r"^([-*\u2022]|\d+[.)])\s+", cleaned):
+                entries.append(_raw("list_item", cleaned))
+            elif len(cleaned) <= 60 and not re.search(r"[.!?\u0964\u3002]$", cleaned):
+                entries.append(_raw("heading", cleaned))
+            else:
+                entries.append(_raw("paragraph", cleaned))
+    except Exception:
+        pass
+    return entries
 
 
 def _ocr_pdf(path: Path) -> list[dict]:
@@ -165,13 +276,21 @@ def parse_document(path: str | Path, run_id: Optional[str] = None) -> SourceDocu
         if not raw:
             emit("parse.ocr", {"message": "No embedded digital text found; invoking OCR engine on scanned PDF."})
             raw = _ocr_pdf(path)
+    elif ext in {".txt", ".text", ".md", ".rtf", ".csv"}:
+        raw = list(_iter_text(path))
+    elif ext in {".png", ".jpg", ".jpeg", ".webp"}:
+        emit("parse.ocr", {"message": f"Extracting text from {ext} image via OCR."})
+        raw = _ocr_image(path)
     else:
         emit("parse.failed", {"reason": f"unsupported file type {ext}"})
-        raise ValueError(f"Unsupported file type: {ext} (use .docx or .pdf)")
+        raise ValueError(f"Unsupported file type: {ext} (supported: .docx, .pdf, .txt, .md, .png, .jpg)")
 
     if not raw:
-        emit("parse.failed", {"reason": "no text found (scanned PDF? OCR needed)"})
-        raise ValueError("No text found. If this is a scanned file, OCR is required.")
+        emit("parse.failed", {"reason": "no text found in document"})
+        raise ValueError(
+            "No extractable text found in this document. If this is a photo or scanned PDF without embedded text, "
+            "please paste the clinical notes directly or provide a digital document."
+        )
 
     blocks: list[Block] = []
     for i, r in enumerate(raw, 1):

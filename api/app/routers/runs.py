@@ -20,7 +20,7 @@ from app.services.event_bus import bus
 from app.services.storage import store
 
 router = APIRouter(tags=["runs"])
-ALLOWED = {".docx", ".pdf"}
+ALLOWED = {".docx", ".pdf", ".txt", ".text", ".md", ".rtf", ".csv", ".png", ".jpg", ".jpeg", ".webp"}
 MAX_BYTES = 15 * 1024 * 1024
 
 
@@ -54,7 +54,8 @@ def _items(run_id: str) -> list[ReviewField]:
 
 @router.post("/runs")
 async def create_run(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    raw_text: Optional[str] = Form(None),
     patient_name: str = Form("Demo Patient"),
     language: str = Form("en"),
     phone: str = Form(""),
@@ -62,14 +63,28 @@ async def create_run(
     guardian_phone: str = Form(""),
     use_cache: bool = Form(True),
 ):
-    ext = Path(file.filename or "").suffix.lower()
-    if ext not in ALLOWED:
-        raise HTTPException(415, "upload a .docx or .pdf file")
-    data = await file.read()
-    if len(data) > MAX_BYTES:
-        raise HTTPException(413, "file is larger than 15 MB")
-    if not data:
-        raise HTTPException(400, "the file is empty")
+    data: bytes = b""
+    ext: str = ""
+    original_filename: str = ""
+
+    if file is not None and getattr(file, "filename", None):
+        ext = Path(file.filename or "").suffix.lower()
+        if ext not in ALLOWED:
+            raise HTTPException(415, f"Unsupported file type '{ext}'. Allowed: .docx, .pdf, .txt, .md, .png, .jpg")
+        data = await file.read()
+        if len(data) > MAX_BYTES:
+            raise HTTPException(413, "file is larger than 15 MB")
+        if not data:
+            raise HTTPException(400, "the file is empty")
+        original_filename = re.sub(r"[^\w.\- ]", "_", file.filename)
+    elif raw_text is not None and raw_text.strip():
+        data = raw_text.strip().encode("utf-8")
+        ext = ".txt"
+        clean_patient = re.sub(r"[^\w\- ]", "_", patient_name or "clinical_notes").strip().lower().replace(" ", "_")
+        original_filename = f"{clean_patient}_notes.txt"
+    else:
+        raise HTTPException(400, "Please provide a document file (.docx, .pdf, .txt, .jpg, .png) or paste clinical notes.")
+
     run_id = "run_" + uuid.uuid4().hex[:8]
     patient_token = "pat_" + uuid.uuid4().hex[:12]
     stored = "source" + ext
@@ -86,7 +101,7 @@ async def create_run(
             "verified": False,
         })
     meta = {
-        "run_id": run_id, "status": "queued", "filename": re.sub(r"[^\w.\- ]", "_", file.filename or "document" + ext),
+        "run_id": run_id, "status": "queued", "filename": original_filename,
         "stored_name": stored, "created_at": datetime.now(timezone.utc).isoformat(),
         "patient_token": patient_token,
         "patient": {"name": patient_name, "language": language, "phone": phone,

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { spring } from "@/lib/motion";
 import { Icon } from "./icons";
 
-const OK = [".docx", ".pdf"];
+const OK = [".docx", ".pdf", ".txt", ".text", ".md", ".rtf", ".csv", ".png", ".jpg", ".jpeg", ".webp"];
 
 export default function UploadZone({ file, onFile }: { file: File | null; onFile: (f: File | null) => void }) {
   const input = useRef<HTMLInputElement>(null);
@@ -14,7 +14,7 @@ export default function UploadZone({ file, onFile }: { file: File | null; onFile
   const take = (f: File | undefined) => {
     if (!f) return;
     if (!OK.some((e) => f.name.toLowerCase().endsWith(e))) {
-      setErr("Please choose a .docx or .pdf file.");
+      setErr("Please upload a .docx, .pdf, .txt, .md, or image file (.png, .jpg).");
       return;
     }
     setErr(null);
@@ -35,7 +35,7 @@ export default function UploadZone({ file, onFile }: { file: File | null; onFile
         tabIndex={0}
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
       >
-        <input ref={input} type="file" accept=".docx,.pdf" hidden onChange={(e) => take(e.target.files?.[0])} />
+        <input ref={input} type="file" accept=".docx,.pdf,.txt,.md,.rtf,.csv,.png,.jpg,.jpeg,.webp" hidden onChange={(e) => take(e.target.files?.[0])} />
         <AnimatePresence mode="wait" initial={false}>
           {file ? (
             <motion.div key="file" className="rr-drop-file" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -52,8 +52,8 @@ export default function UploadZone({ file, onFile }: { file: File | null; onFile
           ) : (
             <motion.div key="empty" className="rr-drop-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <span className="rr-drop-icon"><Icon.upload size={24} /></span>
-              <b>Drop the discharge document here</b>
-              <small>or click to browse · DOCX or PDF · fictional data only</small>
+              <b>Drop any discharge summary or clinical report here</b>
+              <small>or click to browse · DOCX, PDF, TXT, MD, or scanned photos (.jpg, .png)</small>
             </motion.div>
           )}
         </AnimatePresence>
